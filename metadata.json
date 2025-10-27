@@ -1,0 +1,5 @@
+{
+  "name": "The Email Signature Builder",
+  "description": "Create a signature template, upload a CSV of data, map the fields, and generate hundreds of personalized HTML email signatures in seconds.",
+  "requestFramePermissions": []
+}
