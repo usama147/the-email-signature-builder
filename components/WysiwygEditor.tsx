@@ -10,14 +10,20 @@ interface WysiwygEditorProps {
 export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
+    const [isClosing, setIsClosing] = useState(false);
+
+    const handleClose = useCallback(() => {
+        setIsClosing(true);
+        setTimeout(() => {
+            onClose();
+        }, 200);
+    }, [onClose]);
 
     // Set content imperatively on mount to avoid React re-renders wiping user input.
-    // This is the fix for the "can't type" bug.
     useEffect(() => {
         if (editorRef.current) {
             editorRef.current.innerHTML = initialContent;
         }
-        // We only want this to run once when the component mounts.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -42,11 +48,10 @@ export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditor
             }
         };
 
-        // Add event listeners to update toolbar on selection change or interaction
         document.addEventListener('selectionchange', handleSelectionChange);
         editor?.addEventListener('keyup', handleSelectionChange);
         editor?.addEventListener('mouseup', handleSelectionChange);
-        editor?.addEventListener('focus', handleSelectionChange); // Update on focus as well
+        editor?.addEventListener('focus', handleSelectionChange);
 
         return () => {
             document.removeEventListener('selectionchange', handleSelectionChange);
@@ -55,6 +60,18 @@ export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditor
             editor?.removeEventListener('focus', handleSelectionChange);
         };
     }, [updateToolbarState]);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [handleClose]);
 
     const applyFormat = (command: string, value: string | null = null) => {
         document.execCommand(command, false, value);
@@ -93,11 +110,11 @@ export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditor
     );
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-bg-animate" style={{ zIndex: 9999 }}>
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] modal-panel-animate">
+        <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 ${isClosing ? 'modal-bg-animate-out' : 'modal-bg-animate-in'}`} style={{ zIndex: 9999 }}>
+            <div className={`bg-white rounded-lg shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] ${isClosing ? 'modal-panel-animate-out' : 'modal-panel-animate-in'}`}>
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="text-lg font-semibold">Edit Content</h3>
-                    <button onClick={onClose} className="text-2xl font-bold text-slate-500 hover:text-slate-800 transition-colors">&times;</button>
+                    <button onClick={handleClose} className="text-2xl font-bold text-slate-500 hover:text-slate-800 transition-colors">&times;</button>
                 </div>
 
                 <div className="p-2 border-b flex flex-wrap items-center gap-1 bg-slate-50">
@@ -134,7 +151,7 @@ export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditor
                 />
 
                 <div className="p-4 border-t bg-slate-50 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-slate-300">
+                    <button onClick={handleClose} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-slate-300">
                         Cancel
                     </button>
                     <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-blue-700">

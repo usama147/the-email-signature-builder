@@ -1,12 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export function HowItWorksModal({ onClose }: { onClose: () => void }) {
+    const [isClosing, setIsClosing] = useState(false);
+
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+            onClose();
+        }, 200); // Match animation duration
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-bg-animate">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col modal-panel-animate">
+        <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 ${isClosing ? 'modal-bg-animate-out' : 'modal-bg-animate-in'}`}>
+            <div className={`bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col ${isClosing ? 'modal-panel-animate-out' : 'modal-panel-animate-in'}`}>
                 <div className="flex justify-between items-center p-4 border-b">
                     <h2 className="text-xl font-bold text-slate-800">How It Works</h2>
-                    <button onClick={onClose} className="text-2xl font-bold text-slate-500 hover:text-slate-800 transition-colors">{'\u00D7'}</button>
+                    <button onClick={handleClose} className="text-2xl font-bold text-slate-500 hover:text-slate-800 transition-colors">{'\u00D7'}</button>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-6 text-slate-700">
                     <p className="text-base">This tool helps you create and generate personalized email signatures for your entire team in three simple steps.</p>
@@ -56,7 +78,7 @@ Jane Smith,CTO,jane.smith@example.com,+1-234-567-8902,https://linkedin.com/in/ja
                     </div>
                 </div>
                 <div className="p-4 border-t bg-slate-50 flex justify-end">
-                    <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-blue-700">
+                    <button onClick={handleClose} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-blue-700">
                         Got it!
                     </button>
                 </div>

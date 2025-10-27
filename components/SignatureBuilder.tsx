@@ -129,14 +129,28 @@ export function SignatureBuilder({
       const previousWidth = current.maxWidth;
       let newRows = current.rows;
       if (previousWidth !== newWidth && newWidth > 0 && previousWidth > 0) {
-        const scaleFactor = newWidth / previousWidth;
-        newRows = current.rows.map(row => ({
-            ...row,
-            cells: row.cells.map(cell => ({
-              ...cell,
-              width: cell.width > 0 ? Math.round(cell.width * scaleFactor) : 0,
-            })),
-          }))
+        newRows = current.rows.map(row => {
+            const gapSize = current.tableProperties.cellSpacing || 0;
+            const gaps = row.cells.length > 1 ? (row.cells.length - 1) * gapSize : 0;
+            
+            const previousAvailableWidth = previousWidth - gaps;
+            const newAvailableWidth = newWidth - gaps;
+
+            if (previousAvailableWidth <= 0 || newAvailableWidth <= 0) {
+                return row; // Can't scale, return original row
+            }
+
+            const scaleFactor = newAvailableWidth / previousAvailableWidth;
+
+            return {
+                ...row,
+                cells: row.cells.map(cell => ({
+                  ...cell,
+                  // Only scale cells with an explicit width. 'auto' (width=0) cells will be handled by flexbox.
+                  width: cell.width > 0 ? Math.round(cell.width * scaleFactor) : 0,
+                })),
+            };
+        });
       }
       return {
         ...current,

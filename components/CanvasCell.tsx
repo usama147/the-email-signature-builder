@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -32,7 +33,6 @@ const ComponentWrapper: React.FC<ComponentWrapperProps> = ({ item, isSelected, o
       case 'text': return <TextComponent {...item} />;
       case 'image': return <ImageComponent {...item} />;
       case 'socials': return <SocialsComponent {...item} />;
-      // FIX: Changed `SpacerItem` to `SpacerComponent` to correctly render the spacer. `SpacerItem` is a type, not a component.
       case 'spacer': return <SpacerComponent {...item} />;
       case 'divider': return <DividerComponent {...item} />;
       case 'button': return <ButtonComponent {...item} />;
@@ -40,8 +40,8 @@ const ComponentWrapper: React.FC<ComponentWrapperProps> = ({ item, isSelected, o
     }
   };
 
-  const containerClasses = `relative group border-2 p-2 rounded-md transition-all ${
-    isSelected ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:border-blue-200'
+  const containerClasses = `relative group border-2 p-2 rounded-md transition-all min-h-[24px] ${
+    isSelected ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:border-blue-300 hover:bg-blue-50'
   } ${isFullWidthComponent ? 'w-full' : ''}`;
 
   return (
@@ -97,7 +97,7 @@ export function CanvasCell({ cell, selectedItemId, setSelectedItemId, deleteItem
   };
 
   const containerClasses = `relative group min-h-[60px] rounded-md border-2 transition-colors ${
-    isSelected ? 'border-blue-500 bg-blue-50' : 'border-dashed border-slate-300 bg-slate-100 hover:border-blue-400'
+    isSelected ? 'border-blue-500 bg-blue-50' : 'border-dashed border-slate-300 bg-slate-100 hover:border-blue-400 hover:bg-slate-200'
   }`;
 
   return (

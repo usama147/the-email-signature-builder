@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface SaveTemplateModalProps {
     onSave: (name: string) => void;
@@ -7,6 +7,27 @@ interface SaveTemplateModalProps {
 
 export function SaveTemplateModal({ onSave, onClose }: SaveTemplateModalProps) {
     const [name, setName] = useState('');
+    const [isClosing, setIsClosing] = useState(false);
+
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+            onClose();
+        }, 200);
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSave = () => {
         if (name.trim()) {
@@ -17,11 +38,11 @@ export function SaveTemplateModal({ onSave, onClose }: SaveTemplateModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-bg-animate">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md modal-panel-animate">
+        <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 ${isClosing ? 'modal-bg-animate-out' : 'modal-bg-animate-in'}`}>
+            <div className={`bg-white rounded-lg shadow-2xl w-full max-w-md ${isClosing ? 'modal-panel-animate-out' : 'modal-panel-animate-in'}`}>
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="text-lg font-semibold">Save Template</h3>
-                    <button onClick={onClose} className="text-2xl font-bold text-slate-500 hover:text-slate-800 transition-colors">{'\u00D7'}</button>
+                    <button onClick={handleClose} className="text-2xl font-bold text-slate-500 hover:text-slate-800 transition-colors">{'\u00D7'}</button>
                 </div>
                 <div className="p-6 space-y-4">
                     <div>
@@ -39,7 +60,7 @@ export function SaveTemplateModal({ onSave, onClose }: SaveTemplateModalProps) {
                     </div>
                 </div>
                 <div className="p-4 border-t bg-slate-50 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-slate-300">
+                    <button onClick={handleClose} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-slate-300">
                         Cancel
                     </button>
                     <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-blue-700">

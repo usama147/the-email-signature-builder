@@ -28,6 +28,7 @@ export const CanvasRow: React.FC<CanvasRowProps> = ({ row, selectedItemId, setSe
     zIndex: isDragging ? 100 : 'auto',
     display: 'inline-flex',
     minWidth: '100%',
+    gap: `${tableProperties.cellSpacing}px`,
     borderTop: `${row.borders.borderTop}px solid ${row.borders.borderColor}`,
     borderRight: `${row.borders.borderRight}px solid ${row.borders.borderColor}`,
     borderBottom: `${row.borders.borderBottom}px solid ${row.borders.borderColor}`,
@@ -37,8 +38,8 @@ export const CanvasRow: React.FC<CanvasRowProps> = ({ row, selectedItemId, setSe
     paddingBottom: `${row.paddingBottom || 0}px`,
   };
 
-  const containerClasses = `relative group rounded-md transition-all bg-white gap-2 ${
-    isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:bg-slate-50'
+  const containerClasses = `relative group rounded-md transition-all bg-white ${
+    isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:outline-2 hover:outline-dashed hover:outline-slate-400'
   }`;
 
   return (
