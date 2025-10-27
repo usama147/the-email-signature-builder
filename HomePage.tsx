@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { HowItWorksModal } from './components/HowItWorksModal';
+import { CreationMode } from './BulkCreatorPage';
 
 interface HomePageProps {
-  onNavigateToCreate: () => void;
+  onNavigateToCreate: (mode: CreationMode) => void;
 }
 
 export function HomePage({ onNavigateToCreate }: HomePageProps) {
@@ -11,57 +13,42 @@ export function HomePage({ onNavigateToCreate }: HomePageProps) {
   return (
     <>
       <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-        <h2 className="text-3xl font-bold text-slate-800 mb-4">
-          Design and Generate Professional Email Signatures
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">
+          The Email Signature Builder
         </h2>
-        <p className="text-slate-600 max-w-2xl mx-auto mb-6">
-          Our tool simplifies creating consistent, professional email signatures for your entire team. Just follow these simple steps:
+        <p className="text-slate-600 max-w-2xl mx-auto mb-8">
+          Choose your path: create personalized signatures for your entire team with a CSV, or design a single signature from scratch.
         </p>
-        
-        <div className="grid md:grid-cols-3 gap-8 text-left max-w-4xl mx-auto mb-8">
-          <div className="bg-slate-50 p-6 rounded-lg border transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
-            <div className="flex items-center mb-3">
-              <div className="bg-blue-500 text-white rounded-full h-8 w-8 flex items-center justify-center font-bold text-lg mr-4">1</div>
-              <h3 className="text-xl font-semibold">Upload Data</h3>
+
+        <div className="grid md:grid-cols-2 gap-8 text-left max-w-4xl mx-auto mb-10">
+            <div 
+                onClick={() => onNavigateToCreate('bulk')}
+                className="bg-slate-50 p-6 rounded-lg border-2 border-transparent cursor-pointer transition-all duration-300 ease-in-out hover:shadow-xl hover:border-blue-500 hover:-translate-y-1"
+            >
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">Create in Bulk</h3>
+                <p className="text-slate-500 mb-4">
+                    Upload a CSV file with your team's data to generate hundreds of personalized email signatures at once. Perfect for organizations.
+                </p>
+                <span className="font-semibold text-blue-600">Continue with CSV &rarr;</span>
             </div>
-            <p className="text-slate-500">
-              Start by uploading a CSV file containing your team's information (names, titles, phone numbers, etc.).
-            </p>
-          </div>
-          <div className="bg-slate-50 p-6 rounded-lg border transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
-            <div className="flex items-center mb-3">
-              <div className="bg-blue-500 text-white rounded-full h-8 w-8 flex items-center justify-center font-bold text-lg mr-4">2</div>
-              <h3 className="text-xl font-semibold">Design & Map</h3>
+             <div 
+                onClick={() => onNavigateToCreate('single')}
+                className="bg-slate-50 p-6 rounded-lg border-2 border-transparent cursor-pointer transition-all duration-300 ease-in-out hover:shadow-xl hover:border-blue-500 hover:-translate-y-1"
+            >
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">Build From Scratch</h3>
+                <p className="text-slate-500 mb-4">
+                    Design a single, static signature. Manually enter all your information directly into the editor. Ideal for individuals.
+                </p>
+                 <span className="font-semibold text-blue-600">Start Designing &rarr;</span>
             </div>
-            <p className="text-slate-500">
-              Use the drag-and-drop editor to design a signature template. Map the components to the columns in your CSV file.
-            </p>
-          </div>
-          <div className="bg-slate-50 p-6 rounded-lg border transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-300 hover:-translate-y-1">
-            <div className="flex items-center mb-3">
-              <div className="bg-blue-500 text-white rounded-full h-8 w-8 flex items-center justify-center font-bold text-lg mr-4">3</div>
-              <h3 className="text-xl font-semibold">Generate</h3>
-            </div>
-            <p className="text-slate-500">
-              Preview the signatures for each person and copy the generated HTML code with a single click.
-            </p>
-          </div>
         </div>
 
-        <div className="flex flex-wrap justify-center items-center gap-4">
-          <button
-            onClick={onNavigateToCreate}
-            className="px-8 py-3 bg-blue-600 text-white font-bold text-lg rounded-md shadow-lg transition-all duration-200 ease-in-out hover:bg-blue-700 hover:shadow-xl transform hover:-translate-y-0.5"
-          >
-            Start New Signature Process
-          </button>
-          <button
+        <button
             onClick={() => setIsModalOpen(true)}
-            className="px-8 py-3 bg-slate-200 text-slate-800 font-bold text-lg rounded-md transition-all duration-200 ease-in-out hover:bg-slate-300 transform hover:-translate-y-0.5"
-          >
+            className="px-6 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-all duration-200 ease-in-out hover:bg-slate-300 transform hover:-translate-y-0.5"
+        >
             How does this work?
-          </button>
-        </div>
+        </button>
       </div>
       {isModalOpen && <HowItWorksModal onClose={() => setIsModalOpen(false)} />}
     </>

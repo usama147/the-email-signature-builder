@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
@@ -30,6 +31,7 @@ import { presets } from '../presets';
 import { WysiwygEditor } from './WysiwygEditor';
 import { SaveTemplateModal } from './SaveTemplateModal';
 import { UndoIcon, RedoIcon } from './icons';
+import { CreationMode } from '../BulkCreatorPage';
 
 interface BuilderState {
   rows: RowItem[];
@@ -37,6 +39,7 @@ interface BuilderState {
   tableProperties: TableProperties;
 }
 interface SignatureBuilderProps {
+  mode: CreationMode;
   csvHeaders: string[];
   csvData: Record<string, string>[];
   builderState: BuilderState;
@@ -54,9 +57,11 @@ interface SignatureBuilderProps {
   onDeleteTemplate: (id: string) => void;
   onLoadTemplate: (template: SignatureTemplate) => void;
   onComplete: () => void;
+  actionButtonText: string;
 }
 
 export function SignatureBuilder({ 
+  mode,
   csvHeaders, 
   csvData, 
   builderState,
@@ -73,7 +78,8 @@ export function SignatureBuilder({
   onSaveTemplate,
   onDeleteTemplate,
   onLoadTemplate,
-  onComplete 
+  onComplete,
+  actionButtonText
 }: SignatureBuilderProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -98,7 +104,6 @@ export function SignatureBuilder({
         .join('\n');
     fontFaceStyleTag.innerHTML = fontFaces;
     
-    // Inject Google Fonts via <link> tags
     customFonts.filter(font => font.source === 'google').forEach(font => {
         const linkId = `google-font-${font.name.replace(/\s+/g, '-')}`;
         if (!document.getElementById(linkId)) {
@@ -166,13 +171,11 @@ export function SignatureBuilder({
 
         if (!activeContainerId || !overContainerId) return;
 
-        // Reordering rows
         if (activeContainerId === 'root' && overContainerId === 'root') {
             const activeIndex = rows.findIndex(r => r.id === activeId);
             const overIndex = rows.findIndex(r => r.id === overId);
             setBuilderState(prev => ({...prev, rows: arrayMove(prev.rows, activeIndex, overIndex)}));
         } 
-        // Moving/reordering components within or between cells
         else {
             const [treeWithoutItem, movedItem] = removeItem(rows, activeId);
             if (movedItem) {
@@ -220,7 +223,7 @@ export function SignatureBuilder({
     >
       <div className="space-y-4">
         <div className="bg-white p-4 rounded-lg shadow-md flex flex-wrap items-center gap-4">
-            <h2 className="text-xl font-bold">Step 2: Design Signature Template</h2>
+            <h2 className="text-xl font-bold">{mode === 'bulk' ? 'Step 2: Design Signature Template' : 'Design Your Signature'}</h2>
             <div className="flex-grow"></div>
             <div className="flex flex-wrap items-center gap-2">
                 <button onClick={undo} disabled={!canUndo} title="Undo" className="px-3 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-slate-300 hover:-translate-y-0.5 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none">
@@ -237,7 +240,7 @@ export function SignatureBuilder({
                     Save as Template
                 </button>
                 <button onClick={onComplete} className="px-6 py-2 bg-green-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-green-700 hover:-translate-y-0.5">
-                    Generate Signatures
+                    {actionButtonText}
                 </button>
             </div>
         </div>
@@ -305,10 +308,10 @@ export function SignatureBuilder({
             isSidebarComponent ? 
               <SidebarItem component={{ type: activeId as ComponentType, label: SIDEBAR_COMPONENTS.find(c => c.type === activeId)?.label || '' }} /> :
             activeItem?.type === 'row' ?
-              <p>Moving Row...</p> // Placeholder for row overlay
-            : activeItem ?
-             <div className="bg-white p-2 shadow-lg rounded-md">Component</div> // Placeholder for component overlay
-            : null
+              <p>Moving Row...</p> :
+            activeItem ?
+             <div className="bg-white p-2 shadow-lg rounded-md">Component</div> :
+            null
         ) : null}
       </DragOverlay>
 

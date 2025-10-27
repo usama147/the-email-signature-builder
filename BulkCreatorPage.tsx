@@ -8,9 +8,11 @@ import { generateBulkSignatureHtml, generateSignatureHtml } from './utils/htmlGe
 import { checkCompatibility } from './utils/compatibilityChecker';
 import { CompatibilityReport } from './components/CompatibilityReport';
 import { v4 as uuidv4 } from 'uuid';
+import { SingleExport } from './components/SingleExport';
 
+export type CreationMode = 'bulk' | 'single';
 type CsvData = Record<string, string>[];
-type Step = 'upload' | 'design' | 'check' | 'generate';
+type Step = 'upload' | 'design' | 'check' | 'generate' | 'export';
 
 interface BuilderState {
   rows: RowItem[];
@@ -18,8 +20,13 @@ interface BuilderState {
   tableProperties: TableProperties;
 }
 
-export function BulkCreatorPage() {
-  const [step, setStep] = useState<Step>('upload');
+interface BulkCreatorPageProps {
+    mode: CreationMode;
+    onNavigateHome: () => void;
+}
+
+export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) {
+  const [step, setStep] = useState<Step>(mode === 'bulk' ? 'upload' : 'design');
   const [processName, setProcessName] = useState<string>('');
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvData, setCsvData] = useState<CsvData>([]);
@@ -48,7 +55,6 @@ export function BulkCreatorPage() {
     
     setBuilderStateInternal(resolvedState);
 
-    // Avoid pushing to history if state is unchanged from the current history pointer
     if (JSON.stringify(resolvedState) === JSON.stringify(history[historyIndex])) {
         return;
     }
@@ -124,7 +130,6 @@ export function BulkCreatorPage() {
       maxWidth: template.maxWidth,
       tableProperties: template.tableProperties,
     };
-    // This will create a new history entry for the loaded template
     setBuilderState(newState);
     setTemplateLoadedMessage(`Template "${template.name}" has been loaded.`);
     window.scrollTo(0, 0);
@@ -142,22 +147,18 @@ export function BulkCreatorPage() {
             setCsvHeaders(results.meta.fields);
           }
           setCsvData(results.data);
-          setGenerationCount(results.data.length); // Default to all
+          setGenerationCount(results.data.length);
         },
       });
     }
   };
 
-  const goToDesign = () => {
-    if (csvData.length > 0 && processName) {
-      setStep('design');
+  const handleDesignComplete = () => {
+    if (mode === 'bulk') {
+        setStep('check');
     } else {
-      alert('Please enter a process name and upload a valid CSV file.');
+        setStep('export');
     }
-  };
-
-  const goToPreGenerationCheck = () => {
-    setStep('check');
   };
 
   const goToGenerate = () => {
@@ -168,19 +169,6 @@ export function BulkCreatorPage() {
       setGeneratedSignatures(results);
       setStep('generate');
   }
-
-  const handleRestart = () => {
-    setStep('upload');
-    setProcessName('');
-    setCsvHeaders([]);
-    setCsvData([]);
-    setBuilderState(initialBuilderState);
-    setHistory([initialBuilderState]);
-    setHistoryIndex(0);
-    setGeneratedSignatures([]);
-    setGenerationCount(0);
-    setTemplateLoadedMessage('');
-  };
 
   const renderStep = () => {
     switch (step) {
@@ -243,31 +231,16 @@ export function BulkCreatorPage() {
                 )}
               </div>
               <div className="mt-8 text-center">
-                <button onClick={goToDesign} disabled={!processName || csvData.length === 0} className="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-blue-700 hover:-translate-y-0.5 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:transform-none">
+                <button onClick={() => setStep('design')} disabled={!processName || csvData.length === 0} className="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-blue-700 hover:-translate-y-0.5 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:transform-none">
                   Next: Design Signature
                 </button>
               </div>
             </div>
-            
-            {savedTemplates.length > 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-8">
-                  <h3 className="text-xl font-bold mb-4 text-center">Or Start from a Saved Template</h3>
-                  <div className="space-y-3">
-                      {savedTemplates.map(template => (
-                          <div key={template.id} className="flex justify-between items-center p-3 border rounded-md bg-slate-50 transition-all duration-200 ease-in-out hover:bg-slate-100 hover:border-slate-300">
-                              <span className="font-medium">{template.name}</span>
-                              <button onClick={() => handleLoadTemplate(template)} className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded-md transition-colors duration-200 hover:bg-blue-200">
-                                  Use this template
-                              </button>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-            )}
           </div>
         );
       case 'design':
         return <SignatureBuilder 
+                 mode={mode}
                  csvHeaders={csvHeaders}
                  csvData={csvData}
                  builderState={builderState}
@@ -284,7 +257,8 @@ export function BulkCreatorPage() {
                  onSaveTemplate={handleSaveTemplate}
                  onDeleteTemplate={handleDeleteTemplate}
                  onLoadTemplate={handleLoadTemplate}
-                 onComplete={goToPreGenerationCheck} 
+                 onComplete={handleDesignComplete} 
+                 actionButtonText={mode === 'bulk' ? 'Generate Signatures' : 'Export Signature'}
                  />;
       case 'check': {
         const templateHtml = generateSignatureHtml(builderState.rows, builderState.maxWidth, builderState.tableProperties, customFonts);
@@ -313,10 +287,17 @@ export function BulkCreatorPage() {
                     processName={processName}
                     csvData={dataForResults}
                     generatedSignatures={generatedSignatures}
-                    onRestart={handleRestart}
+                    onRestart={onNavigateHome}
                     onGoBack={() => setStep('design')}
                     />
         }
+    case 'export':
+        return <SingleExport
+                builderState={builderState}
+                customFonts={customFonts}
+                onGoBack={() => setStep('design')}
+                onRestart={onNavigateHome}
+                />
     }
   };
 
