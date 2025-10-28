@@ -1,4 +1,6 @@
+
 import React from 'react';
+import { CreationMode } from '../BulkCreatorPage';
 
 interface DataMapperProps {
   label: string;
@@ -11,6 +13,7 @@ interface DataMapperProps {
   isLink?: boolean;
   formatAsTel?: boolean;
   onFormatAsTelChange?: (value: boolean) => void;
+  mode: CreationMode;
 }
 
 const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -35,7 +38,8 @@ export function DataMapper({
     placeholder,
     isLink = false,
     formatAsTel = false,
-    onFormatAsTelChange 
+    onFormatAsTelChange,
+    mode
 }: DataMapperProps) {
   const isMapped = !!mapping;
 
@@ -43,6 +47,20 @@ export function DataMapper({
     const selectedValue = event.target.value;
     onMappingChange(selectedValue ? selectedValue : undefined);
   };
+
+  if (mode === 'single') {
+    return (
+      <div>
+        <Label>{label}</Label>
+        <Input
+          type="text"
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>

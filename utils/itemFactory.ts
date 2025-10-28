@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import {
   ComponentType,
@@ -10,6 +11,7 @@ import {
   RowItem,
   SelectableItem,
   BorderProperties,
+  TableProperties,
 } from '../types';
 
 const defaultBorders: BorderProperties = {
@@ -21,7 +23,7 @@ const defaultBorders: BorderProperties = {
   borderRadius: 0,
 };
 
-export function createNewItem(type: ComponentType, options: { maxWidth?: number } = {}): SelectableItem {
+export function createNewItem(type: ComponentType, options: { maxWidth?: number, tableProperties?: TableProperties } = {}): SelectableItem {
   const base = { id: uuidv4() };
   switch (type) {
     case ComponentType.Text:
@@ -82,7 +84,10 @@ export function createNewItem(type: ComponentType, options: { maxWidth?: number 
         } as ButtonItem;
     case ComponentType.Row:
         const numCells = 2;
-        const cellWidth = options.maxWidth ? Math.floor(options.maxWidth / numCells) : 0;
+        const gapSize = options.tableProperties?.cellSpacing || 0;
+        const gaps = numCells > 1 ? (numCells - 1) * gapSize : 0;
+        const availableWidth = (options.maxWidth || 0) - gaps;
+        const cellWidth = availableWidth > 0 ? Math.floor(availableWidth / numCells) : 0;
         const createCell = () => ({
             id: uuidv4(),
             type: 'cell' as 'cell',

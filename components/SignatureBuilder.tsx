@@ -4,6 +4,7 @@ import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -121,6 +122,14 @@ export function SignatureBuilder({
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
+    }),
+    useSensor(TouchSensor, {
+      // Press and hold for 250ms to start a drag
+      // This allows for scrolling on touch devices
+      activationConstraint: {
+          delay: 250,
+          tolerance: 5,
+      },
     })
   );
 
@@ -176,7 +185,7 @@ export function SignatureBuilder({
 
     if (isSidebarItem) {
         const type = active.id as ComponentType;
-        const newItem = createNewItem(type, { maxWidth });
+        const newItem = createNewItem(type, { maxWidth, tableProperties });
         setBuilderState(prev => ({...prev, rows: insertItem(prev.rows, newItem, overId)}));
         setSelectedItemId(newItem.id);
     } else {
@@ -312,6 +321,8 @@ export function SignatureBuilder({
                     customFonts={customFonts}
                     setCustomFonts={setCustomFonts}
                     onOpenWysiwyg={setEditingTextItem}
+                    mode={mode}
+                    tableProperties={tableProperties}
                 />
               </div>
             </div>

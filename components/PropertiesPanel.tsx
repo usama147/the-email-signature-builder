@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   SignatureItem,
@@ -15,6 +16,7 @@ import {
   Cell,
   BorderProperties,
   CustomFont,
+  TableProperties,
 } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { DataMapper } from './DataMapper';
@@ -22,6 +24,7 @@ import { BorderEditor } from './BorderEditor';
 import { PaddingEditor } from './PaddingEditor';
 import { ColorPicker } from './ColorPicker';
 import { FontPicker } from './FontPicker';
+import { CreationMode } from '../BulkCreatorPage';
 
 interface PropertiesPanelProps {
   item: SelectableItem | null;
@@ -33,6 +36,8 @@ interface PropertiesPanelProps {
   customFonts: CustomFont[];
   setCustomFonts: (fonts: CustomFont[]) => void;
   onOpenWysiwyg: (item: TextItem) => void;
+  mode: CreationMode;
+  tableProperties: TableProperties;
 }
 
 const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -58,7 +63,7 @@ const defaultBorders: BorderProperties = {
     borderRadius: 0,
 };
 
-const RowProperties: React.FC<{ item: RowItem; updateItem: (id: string, updates: Partial<RowItem>) => void; maxWidth: number; savedColors: string[]; setSavedColors: (colors: string[]) => void; }> = ({ item, updateItem, maxWidth, savedColors, setSavedColors }) => {
+const RowProperties: React.FC<{ item: RowItem; updateItem: (id: string, updates: Partial<RowItem>) => void; maxWidth: number; savedColors: string[]; setSavedColors: (colors: string[]) => void; tableProperties: TableProperties; }> = ({ item, updateItem, maxWidth, savedColors, setSavedColors, tableProperties }) => {
     const handleCellCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newCount = parseInt(e.target.value, 10) || 1;
         const currentCount = item.cells.length;
@@ -101,7 +106,10 @@ const RowProperties: React.FC<{ item: RowItem; updateItem: (id: string, updates:
                 newCells = tempCells;
             }
             
-            const equalWidth = newCount > 0 ? Math.floor(maxWidth / newCount) : 0;
+            const gapSize = tableProperties.cellSpacing || 0;
+            const gaps = newCount > 1 ? (newCount - 1) * gapSize : 0;
+            const availableWidth = maxWidth - gaps;
+            const equalWidth = newCount > 0 && availableWidth > 0 ? Math.floor(availableWidth / newCount) : 0;
             const finalCells = newCells.map(cell => ({ ...cell, width: equalWidth }));
 
             updateItem(item.id, { cells: finalCells });
@@ -200,24 +208,27 @@ const TextProperties: React.FC<{
     customFonts: CustomFont[];
     setCustomFonts: (fonts: CustomFont[]) => void;
     onOpenWysiwyg: (item: TextItem) => void;
-}> = ({ item, handleUpdate, csvHeaders, savedColors, setSavedColors, customFonts, setCustomFonts, onOpenWysiwyg }) => {
+    mode: CreationMode;
+}> = ({ item, handleUpdate, csvHeaders, savedColors, setSavedColors, customFonts, setCustomFonts, onOpenWysiwyg, mode }) => {
     return (
         <>
             <div>
                 <Label>Content</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                <div className={`grid grid-cols-1 ${mode === 'bulk' ? 'sm:grid-cols-2' : ''} gap-2 items-center`}>
                     <div className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm min-h-[40px] text-sm overflow-hidden text-ellipsis">
-                        {item.contentMapping 
+                        {item.contentMapping && mode === 'bulk'
                             ? <span className="text-slate-500">{`{{${item.contentMapping}}}`}</span>
                             : <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: item.content }} />
                         }
                     </div>
-                    <Select value={item.contentMapping || ''} onChange={e => handleUpdate({ contentMapping: e.target.value || undefined })}>
-                        <option value="">-- No Mapping --</option>
-                        {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                    </Select>
+                    {mode === 'bulk' && (
+                        <Select value={item.contentMapping || ''} onChange={e => handleUpdate({ contentMapping: e.target.value || undefined })}>
+                            <option value="">-- No Mapping --</option>
+                            {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                        </Select>
+                    )}
                 </div>
-                {!item.contentMapping && (
+                {(!item.contentMapping || mode === 'single') && (
                     <button 
                         onClick={() => onOpenWysiwyg(item)}
                         className="text-sm text-blue-600 hover:underline mt-2"
@@ -238,6 +249,7 @@ const TextProperties: React.FC<{
               isLink={true}
               formatAsTel={item.formatLinkAsTel}
               onFormatAsTelChange={formatLinkAsTel => handleUpdate({ formatLinkAsTel })}
+              mode={mode}
             />
             <FontPicker
                 label="Font Family"
@@ -273,7 +285,7 @@ const TextProperties: React.FC<{
 };
 
 
-export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedColors, setSavedColors, customFonts, setCustomFonts, onOpenWysiwyg }: PropertiesPanelProps) {
+export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedColors, setSavedColors, customFonts, setCustomFonts, onOpenWysiwyg, mode, tableProperties }: PropertiesPanelProps) {
   if (!item) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-4 h-full max-h-[calc(100vh-4rem)] overflow-y-auto">
@@ -296,7 +308,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
 
     switch (item.type) {
       case ComponentType.Row:
-        return <RowProperties item={item} updateItem={updateItem as (id: string, updates: Partial<RowItem>) => void} maxWidth={maxWidth} savedColors={savedColors} setSavedColors={setSavedColors} />;
+        return <RowProperties item={item} updateItem={updateItem as (id: string, updates: Partial<RowItem>) => void} maxWidth={maxWidth} savedColors={savedColors} setSavedColors={setSavedColors} tableProperties={tableProperties} />;
       case ComponentType.Text: {
         return <TextProperties 
                     item={item as TextItem}
@@ -307,6 +319,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
                     customFonts={customFonts}
                     setCustomFonts={setCustomFonts}
                     onOpenWysiwyg={onOpenWysiwyg}
+                    mode={mode}
                 />
       }
       case ComponentType.Image: {
@@ -321,6 +334,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
               onValueChange={src => handleUpdate({ src })}
               onMappingChange={srcMapping => handleUpdate({ srcMapping })}
               placeholder="https://..."
+              mode={mode}
             />
              <div>
               <Label>Alt Text</Label>
@@ -337,6 +351,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
               isLink={true}
               formatAsTel={imageItem.formatLinkAsTel}
               onFormatAsTelChange={formatLinkAsTel => handleUpdate({ formatLinkAsTel })}
+              mode={mode}
             />
             <div>
               <Label>Width (px)</Label>
@@ -405,6 +420,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
                                 headers={csvHeaders}
                                 onValueChange={customIconUrl => updateLink(link.id, { customIconUrl })}
                                 onMappingChange={customIconUrlMapping => updateLink(link.id, { customIconUrlMapping })}
+                                mode={mode}
                             />
                         )}
                         <DataMapper
@@ -417,6 +433,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
                             isLink={true}
                             formatAsTel={link.formatLinkAsTel}
                             onFormatAsTelChange={formatLinkAsTel => updateLink(link.id, { formatLinkAsTel })}
+                            mode={mode}
                         />
                         <div className="grid grid-cols-2 gap-2">
                             <div>
@@ -477,6 +494,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
                 headers={csvHeaders}
                 onValueChange={text => handleUpdate({ text })}
                 onMappingChange={textMapping => handleUpdate({ textMapping })}
+                mode={mode}
             />
             <DataMapper
                 label="Link URL"
@@ -489,6 +507,7 @@ export function PropertiesPanel({ item, updateItem, csvHeaders, maxWidth, savedC
                 isLink={true}
                 formatAsTel={buttonItem.formatLinkAsTel}
                 onFormatAsTelChange={formatLinkAsTel => handleUpdate({ formatLinkAsTel })}
+                mode={mode}
             />
             <FontPicker
                 label="Font Family"
