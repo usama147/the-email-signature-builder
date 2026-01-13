@@ -1,3 +1,4 @@
+
 import { SignatureTemplate, ComponentType } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,10 +9,11 @@ const createCell = (items: any[], width = 0) => ({
     width,
     vAlign: 'middle' as 'middle',
     hAlign: 'left' as 'left',
+    direction: 'column' as 'column',
     borders: { borderTop: 0, borderRight: 0, borderBottom: 0, borderLeft: 0, borderColor: '#000000', borderRadius: 0 },
 });
 
-const createText = (content: string, mapping: string, fontSize = 14, fontWeight: 'normal' | 'bold' = 'normal', color = '#333333') => ({
+const createText = (content: string, mapping: string, fontSize = 14, fontWeight = 'normal', color = '#333333', lineHeight = 1.4) => ({
     id: uuidv4(),
     type: ComponentType.Text,
     content,
@@ -21,6 +23,7 @@ const createText = (content: string, mapping: string, fontSize = 14, fontWeight:
     color,
     link: '',
     fontFamily: 'Arial',
+    lineHeight,
 });
 
 const createImage = (mapping: string, width = 100) => ({

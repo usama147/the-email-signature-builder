@@ -43,7 +43,7 @@ export function Canvas({ rows, selectedItemId, setSelectedItemId, deleteItem, ta
                 />
             ))
         ) : (
-            <div className="flex items-center justify-center h-full text-slate-400 p-10 text-center">
+            <div className="flex items-center justify-center h-full text-[--text-color-light] p-10 text-center">
                 <p>Drag a 'Row' component from the sidebar to get started.</p>
             </div>
         )}

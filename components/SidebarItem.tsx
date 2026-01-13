@@ -26,9 +26,10 @@ export function SidebarItem({ component }: SidebarItemProps) {
       style={style}
       {...listeners}
       {...attributes}
-      className="bg-slate-100 p-3 rounded-md border border-slate-200 cursor-grab transition-all duration-200 ease-in-out hover:bg-slate-200 hover:border-slate-300 hover:shadow-md hover:scale-105 active:cursor-grabbing"
+      className="bg-[--surface-tertiary] p-3 rounded-md border border-[--border-color] cursor-grab transition-all duration-200 ease-in-out hover:bg-[--border-color] hover:border-[--border-color-heavy] shadow-[--shadow-1] hover:shadow-[--shadow-2] hover:scale-105 active:cursor-grabbing active:shadow-[--shadow-inset] active:scale-95 liquid-hover"
+      data-glass
     >
-      <p className="text-center font-medium text-sm text-slate-700">{component.label}</p>
+      <p className="text-center font-medium text-sm text-[--text-color-secondary]">{component.label}</p>
     </div>
   );
 }

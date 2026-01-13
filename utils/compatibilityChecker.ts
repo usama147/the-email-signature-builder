@@ -36,7 +36,19 @@ export function checkCompatibility(html: string): CompatibilityResult[] {
         });
     }
 
-    // 3. Check for Animated GIFs
+    // 3. Check for CSS Positioning
+    const hasPosition = !!doc.querySelector('[style*="position"]');
+    if (hasPosition) {
+        results.push({
+            id: 'css-position',
+            title: 'CSS Positioning',
+            message: 'The `position` property is used for fine-tuning layout. This has poor support in many versions of Outlook and may cause elements to overlap or misalign.',
+            status: CompatibilityStatus.Poor
+        });
+    }
+
+
+    // 4. Check for Animated GIFs
     const hasAnimatedGif = !!doc.querySelector('img[src$=".gif"]');
     if (hasAnimatedGif) {
         results.push({
@@ -47,7 +59,7 @@ export function checkCompatibility(html: string): CompatibilityResult[] {
         });
     }
 
-    // 4. Check for Image Alt Text
+    // 5. Check for Image Alt Text
     const images = doc.querySelectorAll('img');
     const imagesMissingAlt = Array.from(images).some(img => !img.alt?.trim());
     if (imagesMissingAlt) {
@@ -66,7 +78,7 @@ export function checkCompatibility(html: string): CompatibilityResult[] {
         });
     }
 
-    // 5. Check for max-width (Responsiveness)
+    // 6. Check for max-width (Responsiveness)
     const hasMaxWidth = !!doc.querySelector('table[style*="max-width"]');
     if (hasMaxWidth) {
          results.push({
@@ -77,7 +89,7 @@ export function checkCompatibility(html: string): CompatibilityResult[] {
         });
     }
     
-    // 6. Check for Table-based layout
+    // 7. Check for Table-based layout
     const hasTable = !!doc.querySelector('table');
     const hasFlexOrGrid = !!doc.querySelector('[style*="display: flex"]') || !!doc.querySelector('[style*="display: grid"]');
     if (hasTable && !hasFlexOrGrid) {
@@ -96,7 +108,7 @@ export function checkCompatibility(html: string): CompatibilityResult[] {
         });
     }
 
-    // 7. Check for Custom Web Fonts
+    // 8. Check for Custom Web Fonts
     const hasFontFace = html.includes('@font-face');
     const hasGoogleFont = html.includes('@import url(');
     if (hasFontFace || hasGoogleFont) {
@@ -115,7 +127,7 @@ export function checkCompatibility(html: string): CompatibilityResult[] {
         });
     }
 
-    // 8. Check for Image Borders
+    // 9. Check for Image Borders
     const imagesMissingBorder = Array.from(images).some(img => img.getAttribute('border') !== '0');
     if (images.length > 0 && !imagesMissingBorder) {
          results.push({

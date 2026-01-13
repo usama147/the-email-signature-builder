@@ -1,149 +1,231 @@
+
 import { RowItem, Cell, SignatureItem, SelectableItem, ComponentType } from "../types";
 import { arrayMove } from "@dnd-kit/sortable";
 
+/**
+ * Recursively find an item by ID within a list of RowItems (or nested items).
+ */
 export function findItem(rows: RowItem[], id: string): SelectableItem | null {
   if (!id) return null;
+  
   for (const row of rows) {
     if (row.id === id) return row;
+    
+    // Check cells in the row
     for (const cell of row.cells) {
       if (cell.id === id) return cell;
+      
+      // Check items in the cell
       for (const item of cell.items) {
         if (item.id === id) return item;
+        
+        // Recursive check for nested containers (Row/Container)
+        if (item.type === ComponentType.Row || item.type === ComponentType.Container) {
+            const nestedRow = item as RowItem; // Container is structurally same as RowItem
+            // We use a helper to check inside this nested row structure
+            const result = findItemInStructure(nestedRow, id);
+            if (result) return result;
+        }
       }
     }
   }
   return null;
 }
 
-export function findContainerId(rows: RowItem[], id: string): string | null {
-  for (const row of rows) {
-    if (row.id === id) return 'root';
+function findItemInStructure(row: RowItem, id: string): SelectableItem | null {
+    if (row.id === id) return row;
+    
     for (const cell of row.cells) {
-        if (cell.id === id) return cell.id; // It's a container itself
-        if (cell.items.some(item => item.id === id)) {
-            return cell.id;
+        if (cell.id === id) return cell;
+        
+        for (const item of cell.items) {
+            if (item.id === id) return item;
+            
+            if (item.type === ComponentType.Row || item.type === ComponentType.Container) {
+                 const result = findItemInStructure(item as RowItem, id);
+                 if (result) return result;
+            }
         }
     }
-  }
-  return 'root'; // Default to root if not found inside anything
+    return null;
 }
 
+/**
+ * Finds the immediate Sortable container ID for a given item ID.
+ * - If item is a Row at root, returns 'root'.
+ * - If item is inside a Cell, returns the Cell ID.
+ * - Handles arbitrary nesting depth.
+ */
+export function findContainerId(rows: RowItem[], id: string): string | null {
+    // 1. Check if it's a root row
+    if (rows.some(r => r.id === id)) return 'root';
 
+    // 2. Recursive search
+    let foundContainer: string | null = null;
+
+    const traverse = (items: SignatureItem[], containerId: string) => {
+        if (foundContainer) return;
+
+        for (const item of items) {
+            if (item.id === id) {
+                foundContainer = containerId;
+                return;
+            }
+            
+            // If item is a container itself (Row/Container), traverse its cells
+            if (item.type === ComponentType.Row || item.type === ComponentType.Container) {
+                const nestedRow = item as RowItem;
+                for (const cell of nestedRow.cells) {
+                    if (cell.id === id) {
+                        foundContainer = nestedRow.id; // The cell is inside this row/container
+                        return;
+                    }
+                    // Recursively check inside the cell. The cell IS the container for its items.
+                    traverse(cell.items, cell.id);
+                }
+            }
+        }
+    };
+
+    // Start traversal from root rows
+    for (const row of rows) {
+        for (const cell of row.cells) {
+            if (cell.id === id) return row.id; // Cell is directly inside a root row
+            traverse(cell.items, cell.id);
+        }
+    }
+
+    return foundContainer;
+}
+
+/**
+ * Recursively removes an item by ID from the tree.
+ */
 export function removeItem(rows: RowItem[], id: string): [RowItem[], SelectableItem | null] {
     let foundItem: SelectableItem | null = null;
     
-    // Check if the ID belongs to a row first.
-    const rowIndex = rows.findIndex(r => r.id === id);
-    if (rowIndex > -1) {
-        foundItem = rows[rowIndex];
-        const newRows = [...rows];
-        newRows.splice(rowIndex, 1);
-        return [newRows, foundItem];
-    }
-
-    // If not a row, it could be a cell or a component inside a cell.
-    // We map over rows to find the target and return an updated row.
-    let itemFound = false;
-    const mappedRows = rows.map(row => {
-        // Optimization: if we already found and processed the item, don't do more work.
-        if (itemFound) return row;
-
-        // Check if the ID belongs to a cell within this row.
-        const cellIndex = row.cells.findIndex(c => c.id === id);
-        if (cellIndex > -1) {
-            foundItem = row.cells[cellIndex];
-            itemFound = true;
-            const newCells = [...row.cells];
-            newCells.splice(cellIndex, 1);
-            return { ...row, cells: newCells };
-        }
-
-        // If not a cell, check if it's a component inside one of the cells.
-        let componentFoundInCell = false;
-        const newCellsAfterComponentRemoval = row.cells.map(cell => {
-            if (componentFoundInCell) return cell;
-            const itemIndex = cell.items.findIndex(i => i.id === id);
-            if (itemIndex > -1) {
-                foundItem = cell.items[itemIndex];
-                componentFoundInCell = true;
-                itemFound = true;
-                const newItems = [...cell.items];
-                newItems.splice(itemIndex, 1);
-                return { ...cell, items: newItems };
+    const remove = (currentRows: RowItem[]): RowItem[] => {
+        return currentRows.map(row => {
+            if (row.id === id) {
+                foundItem = row;
+                return null;
             }
-            return cell;
-        });
 
-        if (componentFoundInCell) {
-            return { ...row, cells: newCellsAfterComponentRemoval };
+            const newCells = row.cells.map(cell => {
+                if (cell.id === id) {
+                    foundItem = cell;
+                    return null; // Cell removal usually handled by logic in PropertiesPanel, but supported here
+                }
+                
+                const newItems = cell.items.map(item => {
+                    if (item.id === id) {
+                        foundItem = item;
+                        return null;
+                    }
+                    
+                    if (item.type === ComponentType.Row || item.type === ComponentType.Container) {
+                        const [updatedNestedRows, nestedFound] = removeItem([item as RowItem], id);
+                        if (nestedFound) {
+                            foundItem = nestedFound;
+                            return updatedNestedRows.length > 0 ? updatedNestedRows[0] : null; 
+                        }
+                        return item;
+                    }
+                    return item;
+                }).filter((i): i is SignatureItem => i !== null);
+
+                return { ...cell, items: newItems };
+            }).filter((c): c is Cell => c !== null);
+
+            return { ...row, cells: newCells };
+        }).filter((r): r is RowItem => r !== null);
+    };
+
+    const newRows = remove(rows);
+    return [newRows, foundItem];
+}
+
+/**
+ * Recursively inserts an item into the tree.
+ * - If `overId` is 'root', inserts at top level.
+ * - If `overId` is a Cell ID, inserts into that Cell.
+ * - If `overId` is an Item ID, inserts adjacent to that Item.
+ */
+export function insertItem(rows: RowItem[], itemToInsert: SelectableItem, overId: string): RowItem[] {
+    const item = itemToInsert as SignatureItem;
+    
+    // 1. Insert at Root Level
+    if (overId === 'root') {
+        if (item.type === ComponentType.Row || item.type === ComponentType.Container) {
+             return [...rows, item as RowItem];
         }
-
-        // If nothing was found in this row, return it as is.
-        return row;
-    });
-
-    // If an item was found (either a cell or a component)...
-    if (itemFound) {
-        // ...filter out any rows that may have become empty after a cell deletion.
-        const finalRows = mappedRows.filter(row => row.cells.length > 0);
-        return [finalRows, foundItem];
+        // If strict, we might restrict non-rows at root, but for now we allow wrapping them or they might just fail to render
+        // Actually, the Canvas usually expects Rows at root.
+        // We'll wrap it in a default Row for safety if it's not a Row/Container
+        // But let's assume the caller knows what they are doing or the Canvas handles it.
+        // For 'SignatureBuilder', root items are Rows.
+        return rows; 
     }
     
-    // If we've gone through everything and found nothing, return the original data.
-    return [rows, null];
-}
+    // 2. Recursive Insertion
+    const insert = (currentRows: RowItem[]): RowItem[] => {
+        return currentRows.map(row => {
+            // Check if we are inserting next to this row (if overId is a rowId)
+            // This is usually handled by `arrayMove` in the sorting logic, 
+            // but for new insertions:
+            if (row.id === overId) {
+                // Return generic logic? Map cannot return array. 
+                // We handle adjacency insertion at the *parent* level usually.
+                // But for `insertItem` utility called from dragEnd, we often look inside.
+            }
 
-export function insertItem(rows: RowItem[], itemToInsert: SelectableItem, overId: string): RowItem[] {
-    // Case 1: Inserting a new Row
-    if (itemToInsert.type === ComponentType.Row) {
-        const overIndex = rows.findIndex(r => r.id === overId);
-        if (overIndex > -1) {
-            const newRows = [...rows];
-            newRows.splice(overIndex + 1, 0, itemToInsert as RowItem);
-            return newRows;
-        }
-        return [...rows, itemToInsert as RowItem]; // Add to end if not over specific row
-    }
-
-    // Case 2: Inserting a component
-    const item = itemToInsert as SignatureItem;
-
-    // Find which cell to insert into
-    let targetCellId: string | null = null;
-    const overItem = findItem(rows, overId);
-
-    if (overId === 'root' && rows.length > 0) {
-        targetCellId = rows[0].cells[0].id;
-    } else if (overItem?.type === 'row') {
-        targetCellId = (overItem as RowItem).cells[0]?.id || null;
-    } else {
-        targetCellId = findContainerId(rows, overId);
-    }
-
-    if (!targetCellId) return rows; // Cannot determine where to insert
-
-    return rows.map(row => ({
-        ...row,
-        cells: row.cells.map(cell => {
-            if (cell.id === targetCellId) {
-                const overIndex = cell.items.findIndex(i => i.id === overId);
-                const newItems = [...cell.items];
-                if (overIndex > -1) {
-                    newItems.splice(overIndex, 0, item);
-                } else {
-                    newItems.push(item);
+            const newCells = row.cells.map(cell => {
+                // Case A: Dropped directly onto a Cell (e.g. empty cell)
+                if (cell.id === overId) {
+                    return { ...cell, items: [...cell.items, item] };
                 }
+
+                // Case B: Dropped onto an item inside this cell
+                const index = cell.items.findIndex(i => i.id === overId);
+                if (index !== -1) {
+                    const newItems = [...cell.items];
+                    newItems.splice(index + 1, 0, item); // Insert after
+                    return { ...cell, items: newItems };
+                }
+                
+                // Case C: Recurse into nested rows/containers
+                const newItems = cell.items.map(i => {
+                    if (i.type === ComponentType.Row || i.type === ComponentType.Container) {
+                        const updatedRows = insert([i as RowItem]);
+                        return updatedRows[0];
+                    }
+                    return i;
+                });
+                
                 return { ...cell, items: newItems };
-            }
-             // Handle case where overId is the cell itself (empty cell)
-            if (cell.id === overId) {
-                return {...cell, items: [item, ...cell.items]}
-            }
-            return cell;
-        })
-    }));
+            });
+
+            return { ...row, cells: newCells };
+        });
+    };
+
+    // If overId is a top-level row, we need to insert *after* it in the main array
+    const overRowIndex = rows.findIndex(r => r.id === overId);
+    if (overRowIndex > -1) {
+        const newRows = [...rows];
+        // Ensure we only insert Row/Container types at root for consistency
+        if (item.type === ComponentType.Row || item.type === ComponentType.Container) {
+             newRows.splice(overRowIndex + 1, 0, item as RowItem);
+        }
+        return newRows;
+    }
+
+    return insert(rows);
 }
 
+/**
+ * Recursively update an item properties
+ */
 export function updateItem(rows: RowItem[], id: string, updates: Partial<SelectableItem>): RowItem[] {
   return rows.map(row => {
     if (row.id === id) {
@@ -160,6 +242,10 @@ export function updateItem(rows: RowItem[], id: string, updates: Partial<Selecta
           items: cell.items.map(item => {
             if (item.id === id) {
               return { ...item, ...updates } as SignatureItem;
+            }
+            if (item.type === ComponentType.Row || item.type === ComponentType.Container) {
+                const updatedRows = updateItem([item as RowItem], id, updates);
+                return updatedRows[0];
             }
             return item;
           }),

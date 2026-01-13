@@ -19,20 +19,20 @@ const statusMap = {
     },
     [CompatibilityStatus.Poor]: {
         icon: <XCircleIcon />,
-        color: 'text-red-600',
+        color: 'text-[--danger]',
         label: 'Poor Support',
     },
 };
 
 export function CompatibilityReport({ results }: CompatibilityReportProps) {
     if (results.length === 0) {
-        return <p className="text-slate-500">No compatibility checks to display.</p>;
+        return <p className="text-[--text-color-light]">No compatibility checks to display.</p>;
     }
 
     return (
         <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-800">Email Client Compatibility Report</h3>
-            <ul className="divide-y divide-slate-200">
+            <h3 className="text-lg font-semibold text-[--text-color]">Email Client Compatibility Report</h3>
+            <ul className="divide-y divide-[--border-color]">
                 {results.map(result => {
                     const { icon, color, label } = statusMap[result.status];
                     return (
@@ -41,8 +41,8 @@ export function CompatibilityReport({ results }: CompatibilityReportProps) {
                                 {icon}
                             </div>
                             <div>
-                                <h4 className="font-semibold text-slate-700">{result.title} <span className={`text-sm font-medium ml-2 ${color}`}>({label})</span></h4>
-                                <p className="text-sm text-slate-500">{result.message}</p>
+                                <h4 className="font-semibold text-[--text-color-secondary]">{result.title} <span className={`text-sm font-medium ml-2 ${color}`}>({label})</span></h4>
+                                <p className="text-sm text-[--text-color-light]">{result.message}</p>
                             </div>
                         </li>
                     )

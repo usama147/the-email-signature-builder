@@ -1,23 +1,19 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { BoldIcon, ItalicIcon, UnderlineIcon, StrikethroughIcon, ListUlIcon, ListOlIcon, LinkIcon, AlignLeftIcon, AlignCenterIcon, AlignRightIcon, TextColorIcon } from './icons';
+import { useAnimateModal } from '../hooks/useAnimateModal';
+import { Theme } from '../App';
 
 interface WysiwygEditorProps {
     initialContent: string;
     onSave: (newContent: string) => void;
     onClose: () => void;
+    theme: Theme;
 }
 
-export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditorProps) {
+export function WysiwygEditor({ initialContent, onSave, onClose, theme }: WysiwygEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
-    const [isClosing, setIsClosing] = useState(false);
-
-    const handleClose = useCallback(() => {
-        setIsClosing(true);
-        setTimeout(() => {
-            onClose();
-        }, 200);
-    }, [onClose]);
+    const { isClosing, modalAnimationClass, backdropAnimationClass, handleClose } = useAnimateModal(onClose, theme);
 
     // Set content imperatively on mount to avoid React re-renders wiping user input.
     useEffect(() => {
@@ -102,7 +98,7 @@ export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditor
             type="button"
             onMouseDown={e => e.preventDefault()}
             onClick={onClick || (() => applyFormat(command))}
-            className={`p-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-slate-200 ${activeFormats[command] ? 'bg-slate-200 text-blue-600' : 'text-slate-700'}`}
+            className={`p-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-[--border-color] ${activeFormats[command] ? 'bg-[--border-color] text-[--primary]' : 'text-[--text-color-secondary]'}`}
             title={command.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
         >
             {children}
@@ -110,34 +106,34 @@ export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditor
     );
 
     return (
-        <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 ${isClosing ? 'modal-bg-animate-out' : 'modal-bg-animate-in'}`} style={{ zIndex: 9999 }}>
-            <div className={`bg-white rounded-lg shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] ${isClosing ? 'modal-panel-animate-out' : 'modal-panel-animate-in'}`}>
-                <div className="flex justify-between items-center p-4 border-b">
+        <div className={`fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 modal-backdrop-blur ${backdropAnimationClass}`} style={{ zIndex: 9999 }}>
+            <div className={`bg-[--surface] rounded-lg shadow-[--shadow-2] w-full max-w-3xl flex flex-col max-h-[90vh] border border-[--border-color] ${modalAnimationClass}`} data-glass>
+                <div className="flex justify-between items-center p-4 border-b border-[--border-color]">
                     <h3 className="text-lg font-semibold">Edit Content</h3>
-                    <button onClick={handleClose} className="text-2xl font-bold text-slate-500 hover:text-slate-800 transition-colors">&times;</button>
+                    <button onClick={handleClose} className="text-2xl font-bold text-[--text-color-light] hover:text-[--text-color] transition-colors">&times;</button>
                 </div>
 
-                <div className="p-2 border-b flex flex-wrap items-center gap-1 bg-slate-50">
+                <div className="p-2 border-b border-[--border-color] flex flex-wrap items-center gap-1 bg-[--surface-secondary]">
                     <ToolbarButton command="bold"><BoldIcon /></ToolbarButton>
                     <ToolbarButton command="italic"><ItalicIcon /></ToolbarButton>
                     <ToolbarButton command="underline"><UnderlineIcon /></ToolbarButton>
                     <ToolbarButton command="strikethrough"><StrikethroughIcon /></ToolbarButton>
 
-                    <div className="h-6 w-px bg-slate-300 mx-2"></div>
+                    <div className="h-6 w-px bg-[--border-color] mx-2"></div>
 
                     <ToolbarButton command="insertUnorderedList"><ListUlIcon /></ToolbarButton>
                     <ToolbarButton command="insertOrderedList"><ListOlIcon /></ToolbarButton>
                     <ToolbarButton command="link" onClick={applyLink}><LinkIcon /></ToolbarButton>
                     
-                    <div className="h-6 w-px bg-slate-300 mx-2"></div>
+                    <div className="h-6 w-px bg-[--border-color] mx-2"></div>
                     
                     <ToolbarButton command="justifyLeft"><AlignLeftIcon /></ToolbarButton>
                     <ToolbarButton command="justifyCenter"><AlignCenterIcon /></ToolbarButton>
                     <ToolbarButton command="justifyRight"><AlignRightIcon /></ToolbarButton>
 
-                    <div className="h-6 w-px bg-slate-300 mx-2"></div>
+                    <div className="h-6 w-px bg-[--border-color] mx-2"></div>
                     
-                    <label title="Text Color" className="p-2 rounded-md hover:bg-slate-200 cursor-pointer relative transition-colors duration-200">
+                    <label title="Text Color" className="p-2 rounded-md hover:bg-[--border-color] cursor-pointer relative transition-colors duration-200">
                         <input type="color" className="w-full h-full opacity-0 absolute inset-0 cursor-pointer" onChange={(e) => applyFormat('foreColor', e.target.value)} />
                         <TextColorIcon />
                     </label>
@@ -150,11 +146,11 @@ export function WysiwygEditor({ initialContent, onSave, onClose }: WysiwygEditor
                     className="p-4 flex-grow overflow-y-auto focus:outline-none prose max-w-none min-h-[240px]"
                 />
 
-                <div className="p-4 border-t bg-slate-50 flex justify-end gap-3">
-                    <button onClick={handleClose} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-slate-300">
+                <div className="p-4 border-t border-[--border-color] bg-[--surface-secondary] flex justify-end gap-3">
+                    <button onClick={handleClose} className="btn">
                         Cancel
                     </button>
-                    <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md transition-colors duration-200 ease-in-out hover:bg-blue-700">
+                    <button onClick={handleSave} className="btn btn-primary">
                         Save Changes
                     </button>
                 </div>

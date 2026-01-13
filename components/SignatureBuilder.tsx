@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -13,6 +13,8 @@ import {
   CollisionDetection,
   pointerWithin,
   rectIntersection,
+  closestCorners,
+  getFirstCollision,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -33,12 +35,10 @@ import { WysiwygEditor } from './WysiwygEditor';
 import { SaveTemplateModal } from './SaveTemplateModal';
 import { UndoIcon, RedoIcon } from './icons';
 import { CreationMode } from '../BulkCreatorPage';
+import { parseHtmlToState } from '../utils/htmlParser';
+import { BuilderState } from '../BulkCreatorPage';
+import { Theme } from '../App';
 
-interface BuilderState {
-  rows: RowItem[];
-  maxWidth: number;
-  tableProperties: TableProperties;
-}
 interface SignatureBuilderProps {
   mode: CreationMode;
   csvHeaders: string[];
@@ -50,16 +50,29 @@ interface SignatureBuilderProps {
   canUndo: boolean;
   canRedo: boolean;
   savedColors: string[];
-  setSavedColors: (colors: string[]) => void;
+  setSavedColors: (updater: React.SetStateAction<string[]>) => void;
   customFonts: CustomFont[];
-  setCustomFonts: (fonts: CustomFont[]) => void;
+  setCustomFonts: (updater: React.SetStateAction<CustomFont[]>) => void;
   savedTemplates: SignatureTemplate[];
   onSaveTemplate: (name: string) => void;
   onDeleteTemplate: (id: string) => void;
   onLoadTemplate: (template: SignatureTemplate) => void;
+  onImportTemplates: (templates: SignatureTemplate[]) => void;
   onComplete: () => void;
   actionButtonText: string;
+  theme: Theme;
 }
+
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: Parameters<F>): void => {
+        if (timeout !== null) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => func(...args), waitFor);
+    };
+}
+
 
 export function SignatureBuilder({ 
   mode,
@@ -79,16 +92,66 @@ export function SignatureBuilder({
   onSaveTemplate,
   onDeleteTemplate,
   onLoadTemplate,
+  onImportTemplates,
   onComplete,
-  actionButtonText
+  actionButtonText,
+  theme
 }: SignatureBuilderProps) {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false);
-  const [editingTextItem, setEditingTextItem] = useState<TextItem | null>(null);
+  
+  // Generic WYSIWYG state
+  const [wysiwygState, setWysiwygState] = useState<{
+      content: string;
+      onSave: (newContent: string) => void;
+  } | null>(null);
+
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [htmlError, setHtmlError] = useState<string | null>(null);
 
   const { rows, maxWidth, tableProperties } = builderState;
+
+    const debouncedUpdate = useCallback(
+        debounce((html: string) => {
+            try {
+                if (!html.trim()) {
+                    setBuilderState(prev => ({...prev, rows: []}));
+                    setHtmlError(null);
+                    return;
+                }
+                const { builderState: newState, customFonts: parsedFonts } = parseHtmlToState(html);
+                setBuilderState(current => ({
+                    ...current,
+                    ...newState
+                }));
+
+                if (parsedFonts.length > 0) {
+                    setCustomFonts((currentFonts: CustomFont[]) => {
+                        const newFonts = [...currentFonts];
+                        parsedFonts.forEach(parsedFont => {
+                            // Add if a font with the same raw CSS doesn't already exist
+                            if (!newFonts.some(f => f.rawCss && f.rawCss === parsedFont.rawCss)) {
+                                newFonts.push(parsedFont);
+                            }
+                        });
+                        return newFonts;
+                    });
+                }
+
+                setHtmlError(null);
+            } catch (e: any) {
+                console.error("HTML parsing failed:", e);
+                setHtmlError(e.message || "Failed to parse HTML. The structure might be invalid.");
+            }
+        }, 500),
+        [setBuilderState, setCustomFonts]
+    );
+
+  const handleHtmlUpdate = (html: string) => {
+    debouncedUpdate(html);
+  };
+
 
   useEffect(() => {
     // Inject custom font stylesheets into the document head for live preview
@@ -101,18 +164,29 @@ export function SignatureBuilder({
     }
     const fontFaces = customFonts
         .filter(font => font.source === 'url')
-        .map(font => `@font-face { font-family: '${font.name}'; src: url('${font.url}'); }`)
+        .map(font => {
+            if (font.rawCss) {
+                return font.rawCss;
+            }
+            return `@font-face { font-family: '${font.name}'; src: url('${font.url}'); }`;
+        })
         .join('\n');
     fontFaceStyleTag.innerHTML = fontFaces;
     
     customFonts.filter(font => font.source === 'google').forEach(font => {
         const linkId = `google-font-${font.name.replace(/\s+/g, '-')}`;
-        if (!document.getElementById(linkId)) {
-            const linkTag = document.createElement('link');
+        let linkTag = document.getElementById(linkId) as HTMLLinkElement;
+        
+        if (!linkTag) {
+            linkTag = document.createElement('link');
             linkTag.id = linkId;
             linkTag.rel = 'stylesheet';
-            linkTag.href = font.url;
             document.head.appendChild(linkTag);
+        }
+        
+        // Update the href if it has changed (e.g. weights added)
+        if (linkTag.href !== font.url) {
+            linkTag.href = font.url;
         }
     });
 
@@ -176,32 +250,84 @@ export function SignatureBuilder({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
     
+    // Check if dragging from sidebar
     const isSidebarItem = !!active.data.current?.isSidebarItem;
 
     if (isSidebarItem) {
         const type = active.id as ComponentType;
         const newItem = createNewItem(type, { maxWidth, tableProperties });
+        
         setBuilderState(prev => ({...prev, rows: insertItem(prev.rows, newItem, overId)}));
         setSelectedItemId(newItem.id);
     } else {
+        // Reordering existing items in Canvas
+        if (active.id === over.id) return;
+
         const activeContainerId = findContainerId(rows, activeId);
         const overContainerId = findContainerId(rows, overId);
 
         if (!activeContainerId || !overContainerId) return;
 
-        if (activeContainerId === 'root' && overContainerId === 'root') {
-            const activeIndex = rows.findIndex(r => r.id === activeId);
-            const overIndex = rows.findIndex(r => r.id === overId);
-            setBuilderState(prev => ({...prev, rows: arrayMove(prev.rows, activeIndex, overIndex)}));
+        // 1. Reordering within the SAME container
+        if (activeContainerId === overContainerId) {
+            if (activeContainerId === 'root') {
+                const oldIndex = rows.findIndex(r => r.id === activeId);
+                const newIndex = rows.findIndex(r => r.id === overId);
+                setBuilderState(prev => ({...prev, rows: arrayMove(prev.rows, oldIndex, newIndex)}));
+            } else {
+                // It's inside a cell or container
+                setBuilderState(prev => {
+                    // Deep update helper to find the container and reorder its items
+                    const updateRecursively = (currentRows: RowItem[]): RowItem[] => {
+                        return currentRows.map(row => {
+                            if (row.id === activeContainerId) {
+                                return row;
+                            }
+                            
+                            const newCells = row.cells.map(cell => {
+                                if (cell.id === activeContainerId) {
+                                    const oldIndex = cell.items.findIndex(i => i.id === activeId);
+                                    let newIndex = cell.items.findIndex(i => i.id === overId);
+                                    
+                                    // Handle drop on empty space of the same cell
+                                    if (newIndex === -1 && overId === cell.id) {
+                                        newIndex = cell.items.length - 1;
+                                    }
+
+                                    if (oldIndex !== -1 && newIndex !== -1) {
+                                        return { ...cell, items: arrayMove(cell.items, oldIndex, newIndex) };
+                                    }
+                                }
+                                
+                                // Recurse
+                                const newItems = cell.items.map(i => {
+                                    if (i.type === ComponentType.Row || i.type === ComponentType.Container) {
+                                        const updatedNested = updateRecursively([i as RowItem]);
+                                        return updatedNested[0];
+                                    }
+                                    return i;
+                                });
+                                
+                                return { ...cell, items: newItems };
+                            });
+                            
+                            return { ...row, cells: newCells };
+                        });
+                    };
+                    return { ...prev, rows: updateRecursively(prev.rows) };
+                });
+            }
         } 
+        // 2. Moving between DIFFERENT containers
         else {
             const [treeWithoutItem, movedItem] = removeItem(rows, activeId);
             if (movedItem) {
+                // Insert into new location
                 const newTree = insertItem(treeWithoutItem, movedItem, overId);
                 setBuilderState(prev => ({...prev, rows: newTree}));
             }
@@ -212,6 +338,10 @@ export function SignatureBuilder({
   const handleUpdateItem = (id: string, updates: Partial<SelectableItem>) => {
     setBuilderState(prev => ({...prev, rows: updateItem(prev.rows, id, updates)}));
   };
+
+  const handleSetRows = (newRows: RowItem[]) => {
+      setBuilderState(prev => ({...prev, rows: newRows}));
+  }
 
   const handleDeleteItem = (id: string) => {
     setBuilderState(prev => ({...prev, rows: removeItem(prev.rows, id)[0] as RowItem[]}));
@@ -224,14 +354,22 @@ export function SignatureBuilder({
       alert(`Template "${name}" saved!`);
   };
 
+  const handleOpenWysiwyg = (initialContent: string, onSave: (content: string) => void) => {
+      setWysiwygState({ content: initialContent, onSave });
+  };
+
   const selectedItem = findItem(rows, selectedItemId || '');
   const activeItem = findItem(rows, activeId || '');
   const isSidebarComponent = SIDEBAR_COMPONENTS.some(c => c.type === activeId);
   
-  const collisionDetectionStrategy: CollisionDetection = React.useCallback(
+  const collisionDetectionStrategy: CollisionDetection = useCallback(
     (args) => {
+      // First, try pointerWithin to handle small targets better
       const pointerCollisions = pointerWithin(args);
-      if (pointerCollisions.length > 0) return pointerCollisions;
+      if (pointerCollisions.length > 0) {
+        return pointerCollisions;
+      }
+      // Fallback to rectIntersection
       return rectIntersection(args);
     },
     []
@@ -245,24 +383,24 @@ export function SignatureBuilder({
       onDragEnd={handleDragEnd}
     >
       <div className="space-y-4">
-        <div className="bg-white p-4 rounded-lg shadow-md flex flex-wrap items-center gap-4">
+        <div className="bg-[--surface] p-4 rounded-lg shadow-[--shadow-1] flex flex-wrap items-center gap-4 border border-[--border-color] transition-all duration-300" data-glass>
             <h2 className="text-xl font-bold">{mode === 'bulk' ? 'Step 2: Design Signature Template' : 'Design Your Signature'}</h2>
             <div className="flex-grow"></div>
             <div className="flex flex-wrap items-center gap-2">
-                <button onClick={undo} disabled={!canUndo} title="Undo" className="px-3 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-slate-300 hover:-translate-y-0.5 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none">
+                <button onClick={undo} disabled={!canUndo} title="Undo" className="btn btn-icon">
                     <UndoIcon />
                 </button>
-                <button onClick={redo} disabled={!canRedo} title="Redo" className="px-3 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-slate-300 hover:-translate-y-0.5 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none">
+                <button onClick={redo} disabled={!canRedo} title="Redo" className="btn btn-icon">
                     <RedoIcon />
                 </button>
-                <div className="h-8 w-px bg-slate-300 mx-1"></div>
-                <button onClick={() => setIsTemplateLibraryOpen(true)} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-slate-300 hover:-translate-y-0.5">
+                <div className="h-8 w-px bg-[--border-color] mx-1"></div>
+                <button onClick={() => setIsTemplateLibraryOpen(true)} className="btn">
                     Load Template
                 </button>
-                 <button onClick={() => setIsSaveModalOpen(true)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-blue-700 hover:-translate-y-0.5">
+                 <button onClick={() => setIsSaveModalOpen(true)} className="btn btn-secondary">
                     Save as Template
                 </button>
-                <button onClick={onComplete} className="px-6 py-2 bg-green-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-green-700 hover:-translate-y-0.5">
+                <button onClick={onComplete} className="btn btn-success">
                     {actionButtonText}
                 </button>
             </div>
@@ -270,30 +408,36 @@ export function SignatureBuilder({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-2">
-            <Sidebar />
+                <Sidebar 
+                    rows={rows} 
+                    selectedItemId={selectedItemId} 
+                    setSelectedItemId={setSelectedItemId} 
+                    updateItem={handleUpdateItem}
+                    setRows={handleSetRows}
+                />
             </div>
             <div className="lg:col-span-6">
-              <div className="bg-white rounded-lg shadow-lg p-4 min-h-[400px] flex flex-col">
-                  <div className="flex flex-wrap justify-between items-center mb-4 border-b pb-2 gap-4">
+              <div className="bg-[--surface] rounded-lg shadow-[--shadow-2] p-4 min-h-[400px] flex flex-col border border-[--border-color] transition-all duration-300" data-glass>
+                  <div className="flex flex-wrap justify-between items-center mb-4 border-b border-[--border-color] pb-2 gap-4">
                       <h2 className="text-lg font-semibold">Canvas</h2>
                       <div className="flex items-center gap-4 flex-wrap">
                           <div className="flex items-center gap-2">
                              <label className="text-sm font-medium">Border:</label>
-                             <input type="number" value={tableProperties.border} onChange={e => setBuilderState(p => ({...p, tableProperties: {...p.tableProperties, border: Number(e.target.value)}}))} className="w-16 px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" min="0" />
+                             <input type="number" value={tableProperties.border} onChange={e => setBuilderState(p => ({...p, tableProperties: {...p.tableProperties, border: Number(e.target.value)}}))} className="input-field w-16 px-2 py-1" min="0" />
                           </div>
                           <div className="flex items-center gap-2">
                              <label className="text-sm font-medium">Spacing:</label>
-                             <input type="number" value={tableProperties.cellSpacing} onChange={e => setBuilderState(p => ({...p, tableProperties: {...p.tableProperties, cellSpacing: Number(e.target.value)}}))} className="w-16 px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" min="0" />
+                             <input type="number" value={tableProperties.cellSpacing} onChange={e => setBuilderState(p => ({...p, tableProperties: {...p.tableProperties, cellSpacing: Number(e.target.value)}}))} className="input-field w-16 px-2 py-1" min="0" />
                           </div>
                           <div className="flex items-center gap-2">
                               <label className="text-sm font-medium">Max Width:</label>
-                              <input type="number" value={maxWidth} onChange={e => handleMaxWidthChange(Number(e.target.value))} className="w-20 px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                              <input type="number" value={maxWidth} onChange={e => handleMaxWidthChange(Number(e.target.value))} className="input-field w-20 px-2 py-1" />
                               <span>px</span>
                           </div>
                       </div>
                   </div>
                   <div className="overflow-x-auto -mx-4 px-4 flex-grow">
-                    <div className="rounded-md bg-slate-50 border h-full">
+                    <div className="rounded-md bg-[--surface-secondary] border border-[--border-color] h-full transition-all duration-300">
                       <Canvas
                         rows={rows}
                         selectedItemId={selectedItemId}
@@ -306,7 +450,12 @@ export function SignatureBuilder({
                   </div>
               </div>
               <div className="mt-8">
-                  <Preview items={rows} maxWidth={maxWidth} tableProperties={tableProperties} customFonts={customFonts} data={csvHeaders.length > 0 ? csvData[0] : undefined} />
+                  <Preview items={rows} maxWidth={maxWidth} tableProperties={tableProperties} customFonts={customFonts} data={csvHeaders.length > 0 ? csvData[0] : undefined} onHtmlUpdate={handleHtmlUpdate} />
+                   {htmlError && (
+                    <div className="mt-2 p-3 bg-[--danger-surface] border border-[--danger] text-[--danger-text] rounded-md text-sm">
+                        <strong>HTML Error:</strong> {htmlError}
+                    </div>
+                   )}
               </div>
             </div>
             <div className="lg:col-span-4">
@@ -320,7 +469,7 @@ export function SignatureBuilder({
                     setSavedColors={setSavedColors}
                     customFonts={customFonts}
                     setCustomFonts={setCustomFonts}
-                    onOpenWysiwyg={setEditingTextItem}
+                    onOpenWysiwyg={handleOpenWysiwyg}
                     mode={mode}
                     tableProperties={tableProperties}
                 />
@@ -332,10 +481,10 @@ export function SignatureBuilder({
         {activeId ? (
             isSidebarComponent ? 
               <SidebarItem component={{ type: activeId as ComponentType, label: SIDEBAR_COMPONENTS.find(c => c.type === activeId)?.label || '' }} /> :
-            activeItem?.type === 'row' ?
-              <p>Moving Row...</p> :
+            activeItem?.type === 'row' || activeItem?.type === 'container' ?
+              <div className="bg-[--surface] p-2 shadow-[--shadow-2] rounded-md border border-[--border-color]">{activeItem.displayName || (activeItem?.type === 'row' ? 'Row' : 'Container')}</div> :
             activeItem ?
-             <div className="bg-white p-2 shadow-lg rounded-md">Component</div> :
+             <div className="bg-[--surface] p-2 shadow-[--shadow-2] rounded-md border border-[--border-color]">{activeItem.displayName || 'Component'}</div> :
             null
         ) : null}
       </DragOverlay>
@@ -349,7 +498,9 @@ export function SignatureBuilder({
                 setIsTemplateLibraryOpen(false);
             }}
             onDelete={onDeleteTemplate}
+            onImport={onImportTemplates}
             onClose={() => setIsTemplateLibraryOpen(false)}
+            theme={theme}
         />
       )}
       
@@ -357,17 +508,19 @@ export function SignatureBuilder({
         <SaveTemplateModal
           onSave={handleConfirmSave}
           onClose={() => setIsSaveModalOpen(false)}
+          theme={theme}
         />
       )}
 
-      {editingTextItem && (
+      {wysiwygState && (
         <WysiwygEditor
-            initialContent={editingTextItem.content}
+            initialContent={wysiwygState.content}
             onSave={(newContent) => {
-                handleUpdateItem(editingTextItem.id, { content: newContent });
-                setEditingTextItem(null);
+                wysiwygState.onSave(newContent);
+                setWysiwygState(null);
             }}
-            onClose={() => setEditingTextItem(null)}
+            onClose={() => setWysiwygState(null)}
+            theme={theme}
         />
       )}
     </DndContext>

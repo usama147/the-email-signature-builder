@@ -1,11 +1,14 @@
+
 export enum ComponentType {
   Text = 'text',
   Image = 'image',
   Socials = 'socials',
+  Icons = 'icons',
   Spacer = 'spacer',
   Divider = 'divider',
   Button = 'button',
   Row = 'row',
+  Container = 'container',
 }
 
 // A new "type" for a cell to make it selectable
@@ -14,6 +17,11 @@ export type CellType = 'cell';
 export interface BaseSignatureItem {
   id: string;
   type: ComponentType;
+  displayName?: string;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
 }
 
 export interface BorderProperties {
@@ -25,17 +33,26 @@ export interface BorderProperties {
   borderRadius: number;
 }
 
+export interface ConditionalFormat {
+  id: string;
+  textToMatch: string;
+  format: 'bold' | 'superscript';
+  scopeWord?: string;
+}
+
 export interface TextItem extends BaseSignatureItem {
   type: ComponentType.Text;
   content: string;
   fontSize: number;
-  fontWeight: 'normal' | 'bold';
+  fontWeight: string;
+  lineHeight: number;
   color: string;
   link: string;
   fontFamily: string;
   contentMapping?: string;
   linkMapping?: string;
   formatLinkAsTel?: boolean;
+  conditionalFormats?: ConditionalFormat[];
 }
 
 export interface ImageItem extends BaseSignatureItem {
@@ -55,6 +72,7 @@ export interface SocialLink {
   id: string;
   network: SocialNetwork;
   url: string;
+  text?: string;
   width: number;
   height: number;
   urlMapping?: string;
@@ -62,11 +80,56 @@ export interface SocialLink {
   customIconUrl?: string;
   customIconUrlMapping?: string;
   formatLinkAsTel?: boolean;
+  spacingLeft?: number;
+  spacingRight?: number;
+  spacingBottom?: number;
+  verticalOffset?: number;
 }
 export interface SocialsItem extends BaseSignatureItem {
   type: ComponentType.Socials;
   links: SocialLink[];
   iconColor: string;
+  layout: 'horizontal' | 'vertical';
+  gap?: number; // Space between items
+  // Global text styles for labels
+  labelFontFamily?: string;
+  labelFontSize?: number;
+  labelFontWeight?: string;
+  labelColor?: string;
+  labelGap?: number;
+}
+
+export type ContactIconType = 'phone' | 'mobile' | 'email' | 'website' | 'location' | 'calendar' | 'user';
+
+export interface IconLink {
+  id: string;
+  icon: ContactIconType;
+  url: string;
+  text?: string;
+  width: number;
+  height: number;
+  urlMapping?: string;
+  iconType: 'prebuilt' | 'custom';
+  customIconUrl?: string;
+  customIconUrlMapping?: string;
+  formatLinkAsTel?: boolean;
+  spacingLeft?: number;
+  spacingRight?: number;
+  spacingBottom?: number;
+  verticalOffset?: number;
+}
+
+export interface IconsItem extends BaseSignatureItem {
+  type: ComponentType.Icons;
+  links: IconLink[];
+  iconColor: string;
+  layout: 'horizontal' | 'vertical';
+  gap?: number; // Space between items
+  labelFontFamily?: string;
+  labelFontSize?: number;
+  labelFontWeight?: string;
+  labelColor?: string;
+  labelGap?: number;
 }
 
 export interface SpacerItem extends BaseSignatureItem {
@@ -77,6 +140,8 @@ export interface SpacerItem extends BaseSignatureItem {
 export interface DividerItem extends BaseSignatureItem {
   type: ComponentType.Divider;
   height: number;
+  width: number;
+  widthUnit: '%' | 'px';
   color: string;
 }
 
@@ -87,7 +152,7 @@ export interface ButtonItem extends BaseSignatureItem {
     backgroundColor: string;
     textColor: string;
     fontSize: number;
-    fontWeight: 'normal' | 'bold';
+    fontWeight: string;
     borderRadius: number;
     fontFamily: string;
     textMapping?: string;
@@ -95,21 +160,24 @@ export interface ButtonItem extends BaseSignatureItem {
     formatLinkAsTel?: boolean;
 }
 
-// "Content" items that can be placed inside a Cell
-export type SignatureItem = TextItem | ImageItem | SocialsItem | SpacerItem | DividerItem | ButtonItem;
-
 export interface Cell {
   id: string;
   type: CellType;
+  displayName?: string;
   items: SignatureItem[];
   width: number; // in px. 0 = auto
+  height?: number; // in px. undefined or 0 = auto
   vAlign: 'top' | 'middle' | 'bottom';
   hAlign: 'left' | 'center' | 'right';
+  direction: 'row' | 'column';
+  alignItems?: 'flex-start' | 'center' | 'flex-end'; // Alignment of items on the cross axis
+  justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly'; // Alignment of items on the main axis
   borders: BorderProperties;
   paddingTop?: number;
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
+  backgroundColor?: string;
 }
 
 export interface RowItem extends BaseSignatureItem {
@@ -118,10 +186,23 @@ export interface RowItem extends BaseSignatureItem {
   borders: BorderProperties;
   paddingTop: number;
   paddingBottom: number;
+  backgroundColor?: string;
 }
 
+export interface ContainerItem extends BaseSignatureItem {
+    type: ComponentType.Container;
+    cells: Cell[]; // Container acts as a 1-cell row
+    borders: BorderProperties;
+    paddingTop: number;
+    paddingBottom: number;
+    backgroundColor?: string;
+}
+
+// "Content" items that can be placed inside a Cell
+export type SignatureItem = TextItem | ImageItem | SocialsItem | IconsItem | SpacerItem | DividerItem | ButtonItem | RowItem | ContainerItem;
+
 // Union of all possible item types that can be selected
-export type SelectableItem = RowItem | SignatureItem | Cell;
+export type SelectableItem = RowItem | ContainerItem | SignatureItem | Cell;
 
 export type SidebarComponent = {
   type: ComponentType;
@@ -137,6 +218,7 @@ export interface CustomFont {
     name: string;
     url: string;
     source: 'url' | 'google';
+    rawCss?: string;
 }
 
 export interface SignatureTemplate {

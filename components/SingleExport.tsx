@@ -1,28 +1,76 @@
-
-import React, { useState } from 'react';
-import { RowItem, TableProperties, CustomFont } from '../types';
+import React, { useState, useCallback, useRef } from 'react';
+import { CustomFont } from '../types';
 import { Preview } from './Preview';
 import { generateSignatureHtml } from '../utils/htmlGenerator';
-
-interface BuilderState {
-  rows: RowItem[];
-  maxWidth: number;
-  tableProperties: TableProperties;
-}
+import { parseHtmlToState } from '../utils/htmlParser';
+import { BuilderState } from '../BulkCreatorPage';
 
 interface SingleExportProps {
     builderState: BuilderState;
+    setBuilderState: (updater: React.SetStateAction<BuilderState>) => void;
     customFonts: CustomFont[];
+    setCustomFonts: (updater: React.SetStateAction<CustomFont[]>) => void;
     onGoBack: () => void;
     onRestart: () => void;
 }
 
-export function SingleExport({ builderState, customFonts, onGoBack, onRestart }: SingleExportProps) {
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: Parameters<F>): void => {
+        if (timeout !== null) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => func(...args), waitFor);
+    };
+}
+
+export function SingleExport({ builderState, setBuilderState, customFonts, setCustomFonts, onGoBack, onRestart }: SingleExportProps) {
     const { rows, maxWidth, tableProperties } = builderState;
     const [fileName, setFileName] = useState('my-signature');
+    const [htmlError, setHtmlError] = useState<string | null>(null);
+    const [isEditable, setIsEditable] = useState(false);
+
+    const debouncedUpdate = useCallback(
+        debounce((html: string) => {
+            try {
+                if (!html.trim()) {
+                    setBuilderState(prev => ({...prev, rows: []}));
+                    setHtmlError(null);
+                    return;
+                }
+                const { builderState: newState, customFonts: parsedFonts } = parseHtmlToState(html);
+                setBuilderState(current => ({
+                    ...current,
+                    ...newState
+                }));
+                
+                if (parsedFonts.length > 0) {
+                    setCustomFonts((currentFonts: CustomFont[]) => {
+                        const newFonts = [...currentFonts];
+                        parsedFonts.forEach(parsedFont => {
+                            if (!newFonts.some(f => f.rawCss && f.rawCss === parsedFont.rawCss)) {
+                                newFonts.push(parsedFont);
+                            }
+                        });
+                        return newFonts;
+                    });
+                }
+
+                setHtmlError(null);
+            } catch (e: any) {
+                console.error("HTML parsing failed:", e);
+                setHtmlError(e.message || "Failed to parse HTML. The structure might be invalid.");
+            }
+        }, 500),
+        [setBuilderState, setCustomFonts]
+    );
+
+    const handleHtmlUpdate = (html: string) => {
+        debouncedUpdate(html);
+    };
 
     const handleDownload = () => {
-        const signatureHtml = generateSignatureHtml(rows, maxWidth, tableProperties, customFonts);
+        const signatureHtml = generateSignatureHtml(rows, maxWidth, tableProperties, customFonts, isEditable);
         const blob = new Blob([signatureHtml], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -40,39 +88,51 @@ export function SingleExport({ builderState, customFonts, onGoBack, onRestart }:
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            <div className="bg-white p-4 rounded-lg shadow-md space-y-4">
+            <div className="bg-[--surface] p-4 rounded-lg shadow-[--shadow-1] space-y-4 border border-[--border-color] transition-all duration-300" data-glass>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h2 className="text-2xl font-bold">Your Signature is Ready!</h2>
-                        <p className="text-slate-600">Preview your signature, copy the code, or download it as a file.</p>
+                        <p className="text-[--text-color-secondary]">Preview your signature, copy the code, or download it as a file.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button onClick={onGoBack} className="px-4 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-slate-300 hover:-translate-y-0.5">
+                        <button onClick={onGoBack} className="btn">
                             Back to Design
                         </button>
-                        <button onClick={onRestart} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-blue-700 hover:-translate-y-0.5">
+                        <button onClick={onRestart} className="btn btn-primary">
                             Start Over
                         </button>
                     </div>
                 </div>
-                <div className="border-t pt-4 flex flex-wrap items-end justify-between gap-4">
+                <div className="border-t border-[--border-color] pt-4 flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <label htmlFor="fileName" className="block text-sm font-medium text-slate-700 mb-1">
-                            File Name
+                        <label htmlFor="fileName" className="block text-sm font-medium text-[--text-color-secondary] mb-1">
+                            File Name & Options
                         </label>
                         <input
                             type="text"
                             id="fileName"
                             value={fileName}
                             onChange={(e) => setFileName(e.target.value)}
-                            className="block w-full sm:w-64 px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            className="input-field block w-full sm:w-64 px-3 py-2 sm:text-sm"
                             placeholder="my-signature"
                         />
+                         <div className="mt-2">
+                            <label className="flex items-center text-sm text-[--text-color-secondary]">
+                                <input
+                                    type="checkbox"
+                                    checked={isEditable}
+                                    onChange={(e) => setIsEditable(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-[--primary] focus:ring-[--primary] mr-2"
+                                />
+                                Create editable HTML file
+                            </label>
+                            <p className="text-xs text-[--text-color-light] mt-1 ml-6">Generates an HTML file where you can directly edit text content in your browser. Note: Links will not be clickable in this mode.</p>
+                        </div>
                     </div>
                     <button 
                         onClick={handleDownload}
                         disabled={!fileName.trim()}
-                        className="px-4 py-2 bg-green-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-green-700 hover:-translate-y-0.5 disabled:bg-slate-400 disabled:transform-none"
+                        className="btn btn-success"
                     >
                         Download (.html)
                     </button>
@@ -84,7 +144,13 @@ export function SingleExport({ builderState, customFonts, onGoBack, onRestart }:
                 maxWidth={maxWidth}
                 tableProperties={tableProperties}
                 customFonts={customFonts}
+                onHtmlUpdate={handleHtmlUpdate}
             />
+            {htmlError && (
+                <div className="mt-2 p-3 bg-[--danger-surface] border border-[--danger] text-[--danger-text] rounded-md text-sm">
+                    <strong>HTML Error:</strong> {htmlError}
+                </div>
+            )}
         </div>
     )
 }

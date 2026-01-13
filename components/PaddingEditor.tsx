@@ -13,11 +13,11 @@ interface PaddingEditorProps {
 }
 
 const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <label className="block text-xs font-medium text-slate-600 mb-1">{children}</label>
+  <label className="block text-xs font-medium text-[--text-color-secondary] mb-1">{children}</label>
 );
 
 const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
-  <input {...props} className="block w-full px-2 py-1 bg-white border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+  <input {...props} className="block w-full px-2 py-1 bg-[--surface] border border-[--border-color] rounded-md shadow-[--shadow-inset] placeholder-[--text-color-light] focus:outline-none focus:ring-[--primary] focus:border-[--primary] sm:text-sm transition-all duration-300" />
 );
 
 export function PaddingEditor({ value, onChange }: PaddingEditorProps) {
@@ -27,7 +27,7 @@ export function PaddingEditor({ value, onChange }: PaddingEditorProps) {
     };
 
     return (
-        <div className="p-3 bg-slate-50 rounded-md border space-y-3">
+        <div className="p-3 bg-[--surface-secondary] rounded-md border border-[--border-color] space-y-3 transition-all duration-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
                  <div>
                     <Label>Top (px)</Label>
@@ -46,7 +46,7 @@ export function PaddingEditor({ value, onChange }: PaddingEditorProps) {
                     <Input type="number" min="0" value={value.paddingLeft ?? ''} onChange={e => handleChange('paddingLeft', e.target.value)} placeholder="auto" />
                 </div>
             </div>
-            <p className="text-xs text-slate-500">Leave fields blank to inherit from row or global settings.</p>
+            <p className="text-xs text-[--text-color-light]">Leave fields blank to inherit from row or global settings.</p>
         </div>
     );
 }

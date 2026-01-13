@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import { SignatureBuilder } from './components/SignatureBuilder';
@@ -9,12 +8,13 @@ import { checkCompatibility } from './utils/compatibilityChecker';
 import { CompatibilityReport } from './components/CompatibilityReport';
 import { v4 as uuidv4 } from 'uuid';
 import { SingleExport } from './components/SingleExport';
+import { Theme } from './App';
 
 export type CreationMode = 'bulk' | 'single';
 type CsvData = Record<string, string>[];
 type Step = 'upload' | 'design' | 'check' | 'generate' | 'export';
 
-interface BuilderState {
+export interface BuilderState {
   rows: RowItem[];
   maxWidth: number;
   tableProperties: TableProperties;
@@ -23,9 +23,10 @@ interface BuilderState {
 interface BulkCreatorPageProps {
     mode: CreationMode;
     onNavigateHome: () => void;
+    theme: Theme;
 }
 
-export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) {
+export function BulkCreatorPage({ mode, onNavigateHome, theme }: BulkCreatorPageProps) {
   const [step, setStep] = useState<Step>(mode === 'bulk' ? 'upload' : 'design');
   const [processName, setProcessName] = useState<string>('');
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -85,24 +86,39 @@ export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) 
   useEffect(() => {
     try {
       const storedColors = localStorage.getItem('savedColors');
-      if (storedColors) setSavedColors(JSON.parse(storedColors));
+      if (storedColors) {
+          const parsed = JSON.parse(storedColors);
+          if (Array.isArray(parsed)) setSavedColors(parsed);
+      }
       const storedFonts = localStorage.getItem('customFonts');
-      if (storedFonts) setCustomFonts(JSON.parse(storedFonts));
+      if (storedFonts) {
+          const parsed = JSON.parse(storedFonts);
+          if (Array.isArray(parsed)) setCustomFonts(parsed);
+      }
       const storedTemplates = localStorage.getItem('savedTemplates');
-      if (storedTemplates) setSavedTemplates(JSON.parse(storedTemplates));
+      if (storedTemplates) {
+          const parsed = JSON.parse(storedTemplates);
+          if(Array.isArray(parsed)) setSavedTemplates(parsed);
+      }
     } catch (err) {
       console.error("Failed to load data from localStorage", err);
     }
   }, []);
 
-  const handleSetSavedColors = (colors: string[]) => {
-    setSavedColors(colors);
-    localStorage.setItem('savedColors', JSON.stringify(colors));
+  const handleSetSavedColors = (updater: React.SetStateAction<string[]>) => {
+    setSavedColors(currentColors => {
+        const newColors = typeof updater === 'function' ? updater(currentColors) : updater;
+        localStorage.setItem('savedColors', JSON.stringify(newColors));
+        return newColors;
+    });
   };
 
-  const handleSetCustomFonts = (fonts: CustomFont[]) => {
-    setCustomFonts(fonts);
-    localStorage.setItem('customFonts', JSON.stringify(fonts));
+  const handleSetCustomFonts = (updater: React.SetStateAction<CustomFont[]>) => {
+    setCustomFonts(currentFonts => {
+        const newFonts = typeof updater === 'function' ? updater(currentFonts) : updater;
+        localStorage.setItem('customFonts', JSON.stringify(newFonts));
+        return newFonts;
+    });
   };
 
   const handleSaveTemplate = (name: string) => {
@@ -133,6 +149,38 @@ export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) 
     setBuilderState(newState);
     setTemplateLoadedMessage(`Template "${template.name}" has been loaded.`);
     window.scrollTo(0, 0);
+  };
+  
+  const handleImportTemplates = (importedTemplates: SignatureTemplate[]) => {
+    const newTemplates = [...savedTemplates];
+    let importedCount = 0;
+    
+    for (const importedTemplate of importedTemplates) {
+        // Basic validation of the template structure
+        if (
+            importedTemplate.id && 
+            typeof importedTemplate.id === 'string' &&
+            importedTemplate.name &&
+            typeof importedTemplate.name === 'string' &&
+            Array.isArray(importedTemplate.rows) &&
+            typeof importedTemplate.maxWidth === 'number' &&
+            typeof importedTemplate.tableProperties === 'object'
+        ) {
+            // Avoid duplicates by ID
+            if (!newTemplates.some(t => t.id === importedTemplate.id)) {
+                newTemplates.push(importedTemplate);
+                importedCount++;
+            }
+        }
+    }
+
+    if (importedCount > 0) {
+        setSavedTemplates(newTemplates);
+        localStorage.setItem('savedTemplates', JSON.stringify(newTemplates));
+        alert(`Successfully imported ${importedCount} new template(s).`);
+    } else {
+        alert('No new templates were imported. They might already exist or the file may be invalid.');
+    }
   };
 
 
@@ -175,8 +223,8 @@ export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) 
       case 'upload':
         return (
           <div className="max-w-2xl mx-auto space-y-8">
-            <div className="bg-white rounded-lg shadow-lg p-8">
-              <h2 className="text-2xl font-bold mb-6 text-center">Step 1: Upload Your Data</h2>
+            <div className="bg-[--surface] rounded-lg shadow-[--shadow-2] p-8 border border-[--border-color] transition-all duration-300" data-glass>
+              <h2 className="text-2xl font-bold mb-6 text-center text-[--text-color]">Step 1: Upload Your Data</h2>
               
               {templateLoadedMessage && (
                   <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
@@ -187,51 +235,51 @@ export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) 
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Process Name</label>
+                  <label className="block text-sm font-medium text-[--text-color-secondary] mb-1">Process Name</label>
                   <input
                     type="text"
                     value={processName}
                     onChange={(e) => setProcessName(e.target.value)}
                     placeholder="e.g., Q4 Sales Team Signatures"
-                    className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="input-field block w-full px-3 py-2"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Upload CSV</label>
+                  <label className="block text-sm font-medium text-[--text-color-secondary] mb-1">Upload CSV</label>
                   <input
                     type="file"
                     accept=".csv"
                     onChange={handleFileUpload}
-                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all duration-200"
+                    className="block w-full text-sm text-[--text-color-light] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[--primary] file:text-[--primary-text] file:opacity-80 hover:file:opacity-100 transition-all duration-200"
                   />
                 </div>
 
                 {csvData.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">Number of Signatures to Generate</label>
+                    <label className="block text-sm font-medium text-[--text-color-secondary] mb-1">Number of Signatures to Generate</label>
                     <input
                       type="number"
                       value={generationCount}
                       onChange={(e) => setGenerationCount(parseInt(e.target.value, 10))}
                       max={csvData.length}
                       min="1"
-                      className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm"
+                      className="input-field block w-full px-3 py-2"
                     />
-                    <p className="text-xs text-slate-500 mt-1">Total records found: {csvData.length}</p>
+                    <p className="text-xs text-[--text-color-light] mt-1">Total records found: {csvData.length}</p>
                   </div>
                 )}
 
                 {csvHeaders.length > 0 && (
-                  <div className="p-4 bg-slate-50 rounded-md border">
-                    <h4 className="font-semibold mb-2">Detected CSV Fields:</h4>
+                  <div className="p-4 bg-[--surface-secondary] rounded-md border border-[--border-color] transition-all duration-300">
+                    <h4 className="font-semibold mb-2 text-[--text-color-secondary]">Detected CSV Fields:</h4>
                     <div className="flex flex-wrap gap-2">
-                      {csvHeaders.map(header => <span key={header} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">{header}</span>)}
+                      {csvHeaders.map(header => <span key={header} className="bg-[--primary] bg-opacity-10 text-[--primary] text-xs font-medium px-2.5 py-0.5 rounded-full">{header}</span>)}
                     </div>
                   </div>
                 )}
               </div>
               <div className="mt-8 text-center">
-                <button onClick={() => setStep('design')} disabled={!processName || csvData.length === 0} className="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-blue-700 hover:-translate-y-0.5 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:transform-none">
+                <button onClick={() => setStep('design')} disabled={!processName || csvData.length === 0} className="btn btn-primary">
                   Next: Design Signature
                 </button>
               </div>
@@ -257,22 +305,24 @@ export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) 
                  onSaveTemplate={handleSaveTemplate}
                  onDeleteTemplate={handleDeleteTemplate}
                  onLoadTemplate={handleLoadTemplate}
+                 onImportTemplates={handleImportTemplates}
                  onComplete={handleDesignComplete} 
                  actionButtonText={mode === 'bulk' ? 'Generate Signatures' : 'Export Signature'}
+                 theme={theme}
                  />;
       case 'check': {
         const templateHtml = generateSignatureHtml(builderState.rows, builderState.maxWidth, builderState.tableProperties, customFonts);
         const compatibilityResults = checkCompatibility(templateHtml);
         return (
-            <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto">
+            <div className="bg-[--surface] rounded-lg shadow-[--shadow-2] p-8 max-w-4xl mx-auto border border-[--border-color] transition-all duration-300" data-glass>
                 <h2 className="text-2xl font-bold mb-2 text-center">Step 3: Compatibility Check</h2>
-                <p className="text-slate-500 text-center mb-6">We've scanned your design for common issues in email clients. Review the report below before generating your signatures.</p>
+                <p className="text-[--text-color-light] text-center mb-6">We've scanned your design for common issues in email clients. Review the report below before generating your signatures.</p>
                 <CompatibilityReport results={compatibilityResults} />
                 <div className="mt-8 flex flex-wrap justify-between items-center gap-4">
-                    <button onClick={() => setStep('design')} className="px-6 py-2 bg-slate-200 text-slate-800 font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-slate-300 hover:-translate-y-0.5">
+                    <button onClick={() => setStep('design')} className="btn">
                         Back to Design
                     </button>
-                    <button onClick={goToGenerate} className="px-6 py-2 bg-green-600 text-white font-semibold rounded-md transition-all duration-200 ease-in-out transform hover:bg-green-700 hover:-translate-y-0.5">
+                    <button onClick={goToGenerate} className="btn btn-success">
                         Generate Signatures
                     </button>
                 </div>
@@ -289,12 +339,20 @@ export function BulkCreatorPage({ mode, onNavigateHome }: BulkCreatorPageProps) 
                     generatedSignatures={generatedSignatures}
                     onRestart={onNavigateHome}
                     onGoBack={() => setStep('design')}
+                    savedColors={savedColors}
+                    setSavedColors={handleSetSavedColors}
+                    customFonts={customFonts}
+                    setCustomFonts={handleSetCustomFonts}
+                    builderState={builderState}
+                    theme={theme}
                     />
         }
     case 'export':
         return <SingleExport
                 builderState={builderState}
+                setBuilderState={setBuilderState}
                 customFonts={customFonts}
+                setCustomFonts={setCustomFonts}
                 onGoBack={() => setStep('design')}
                 onRestart={onNavigateHome}
                 />
