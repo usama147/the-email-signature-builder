@@ -37,16 +37,16 @@ function App() {
 
   return (
     <div className="min-h-screen bg-transparent text-[--text-color] font-sans">
-      <header className="bg-[--surface] shadow-[--shadow-1] border-b border-[--border-color] transition-all duration-300" data-glass>
+      <header className="bg-[--surface] shadow-[--shadow-1] border-b border-[--border-color] transition-all duration-300 sticky top-0 z-40" data-glass>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl sm:text-2xl font-bold text-[--text-color] hover:text-[--primary] cursor-pointer transition-colors duration-300" onClick={navigateToHome}>
+          <div className="flex items-center justify-between h-20">
+            <h1 className="text-xl sm:text-2xl font-black text-[--text-color] hover:text-[--primary] cursor-pointer transition-all duration-300" onClick={navigateToHome}>
               The Email Signature Builder
             </h1>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsSettingsOpen(true)}
-                className="btn btn-icon rounded-full border-none bg-transparent hover:bg-[--surface-secondary]"
+                className="btn btn-icon rounded-full border border-[--border-color] bg-[--surface-secondary] hover:bg-[--surface-tertiary] text-[--text-color-secondary] flex-shrink-0"
                 title="Change Appearance"
               >
                 <SettingsIcon />

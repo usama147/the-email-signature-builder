@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DndContext,
@@ -382,27 +381,30 @@ export function SignatureBuilder({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="space-y-4">
-        <div className="bg-[--surface] p-4 rounded-lg shadow-[--shadow-1] flex flex-wrap items-center gap-4 border border-[--border-color] transition-all duration-300" data-glass>
-            <h2 className="text-xl font-bold">{mode === 'bulk' ? 'Step 2: Design Signature Template' : 'Design Your Signature'}</h2>
-            <div className="flex-grow"></div>
-            <div className="flex flex-wrap items-center gap-2">
-                <button onClick={undo} disabled={!canUndo} title="Undo" className="btn btn-icon">
-                    <UndoIcon />
-                </button>
-                <button onClick={redo} disabled={!canRedo} title="Redo" className="btn btn-icon">
-                    <RedoIcon />
-                </button>
-                <div className="h-8 w-px bg-[--border-color] mx-1"></div>
-                <button onClick={() => setIsTemplateLibraryOpen(true)} className="btn">
-                    Load Template
-                </button>
-                 <button onClick={() => setIsSaveModalOpen(true)} className="btn btn-secondary">
-                    Save as Template
-                </button>
-                <button onClick={onComplete} className="btn btn-success">
-                    {actionButtonText}
-                </button>
+      <div className="space-y-6">
+        <div className="bg-[--surface] p-6 rounded-[--radius] shadow-[--shadow-1] flex flex-wrap items-center justify-between gap-6 border border-[--border-color] transition-all duration-300" data-glass>
+            <h2 className="text-xl font-black">{mode === 'bulk' ? 'Design Signature Template' : 'Design Your Signature'}</h2>
+            <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <button onClick={undo} disabled={!canUndo} title="Undo" className="btn btn-icon btn-secondary">
+                      <UndoIcon />
+                  </button>
+                  <button onClick={redo} disabled={!canRedo} title="Redo" className="btn btn-icon btn-secondary">
+                      <RedoIcon />
+                  </button>
+                </div>
+                <div className="h-8 w-px bg-[--border-color] mx-2"></div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button onClick={() => setIsTemplateLibraryOpen(true)} className="btn btn-secondary">
+                      Load Template
+                  </button>
+                   <button onClick={() => setIsSaveModalOpen(true)} className="btn btn-secondary">
+                      Save as Template
+                  </button>
+                  <button onClick={onComplete} className="btn btn-primary">
+                      {actionButtonText}
+                  </button>
+                </div>
             </div>
         </div>
 
@@ -417,27 +419,27 @@ export function SignatureBuilder({
                 />
             </div>
             <div className="lg:col-span-6">
-              <div className="bg-[--surface] rounded-lg shadow-[--shadow-2] p-4 min-h-[400px] flex flex-col border border-[--border-color] transition-all duration-300" data-glass>
-                  <div className="flex flex-wrap justify-between items-center mb-4 border-b border-[--border-color] pb-2 gap-4">
-                      <h2 className="text-lg font-semibold">Canvas</h2>
+              <div className="bg-[--surface] rounded-[--radius] shadow-[--shadow-2] p-6 min-h-[400px] flex flex-col border border-[--border-color] transition-all duration-300" data-glass>
+                  <div className="flex flex-wrap justify-between items-center mb-6 border-b border-[--border-color] pb-4 gap-4">
+                      <h2 className="text-lg font-bold">Canvas</h2>
                       <div className="flex items-center gap-4 flex-wrap">
                           <div className="flex items-center gap-2">
-                             <label className="text-sm font-medium">Border:</label>
+                             <label className="text-sm font-semibold opacity-70">Border:</label>
                              <input type="number" value={tableProperties.border} onChange={e => setBuilderState(p => ({...p, tableProperties: {...p.tableProperties, border: Number(e.target.value)}}))} className="input-field w-16 px-2 py-1" min="0" />
                           </div>
                           <div className="flex items-center gap-2">
-                             <label className="text-sm font-medium">Spacing:</label>
+                             <label className="text-sm font-semibold opacity-70">Spacing:</label>
                              <input type="number" value={tableProperties.cellSpacing} onChange={e => setBuilderState(p => ({...p, tableProperties: {...p.tableProperties, cellSpacing: Number(e.target.value)}}))} className="input-field w-16 px-2 py-1" min="0" />
                           </div>
                           <div className="flex items-center gap-2">
-                              <label className="text-sm font-medium">Max Width:</label>
+                              <label className="text-sm font-semibold opacity-70">Max Width:</label>
                               <input type="number" value={maxWidth} onChange={e => handleMaxWidthChange(Number(e.target.value))} className="input-field w-20 px-2 py-1" />
-                              <span>px</span>
+                              <span className="text-sm opacity-50 font-bold">px</span>
                           </div>
                       </div>
                   </div>
                   <div className="overflow-x-auto -mx-4 px-4 flex-grow">
-                    <div className="rounded-md bg-[--surface-secondary] border border-[--border-color] h-full transition-all duration-300">
+                    <div className="rounded-[--radius] bg-[--surface-secondary] border border-[--border-color] h-full transition-all duration-300 p-2">
                       <Canvas
                         rows={rows}
                         selectedItemId={selectedItemId}
@@ -452,14 +454,14 @@ export function SignatureBuilder({
               <div className="mt-8">
                   <Preview items={rows} maxWidth={maxWidth} tableProperties={tableProperties} customFonts={customFonts} data={csvHeaders.length > 0 ? csvData[0] : undefined} onHtmlUpdate={handleHtmlUpdate} />
                    {htmlError && (
-                    <div className="mt-2 p-3 bg-[--danger-surface] border border-[--danger] text-[--danger-text] rounded-md text-sm">
-                        <strong>HTML Error:</strong> {htmlError}
+                    <div className="mt-4 p-4 bg-[--danger-surface] border border-[--danger] text-[--danger-text] rounded-[--radius] text-sm">
+                        <strong className="block mb-1">HTML Error:</strong> {htmlError}
                     </div>
                    )}
               </div>
             </div>
             <div className="lg:col-span-4">
-              <div className="sticky top-8">
+              <div className="sticky top-28">
                 <PropertiesPanel
                     item={selectedItem}
                     updateItem={handleUpdateItem}
@@ -482,9 +484,9 @@ export function SignatureBuilder({
             isSidebarComponent ? 
               <SidebarItem component={{ type: activeId as ComponentType, label: SIDEBAR_COMPONENTS.find(c => c.type === activeId)?.label || '' }} /> :
             activeItem?.type === 'row' || activeItem?.type === 'container' ?
-              <div className="bg-[--surface] p-2 shadow-[--shadow-2] rounded-md border border-[--border-color]">{activeItem.displayName || (activeItem?.type === 'row' ? 'Row' : 'Container')}</div> :
+              <div className="bg-[--surface] p-4 shadow-[--shadow-2] rounded-[--radius] border border-[--border-color] font-bold text-[--primary]">{activeItem.displayName || (activeItem?.type === 'row' ? 'Row' : 'Container')}</div> :
             activeItem ?
-             <div className="bg-[--surface] p-2 shadow-[--shadow-2] rounded-md border border-[--border-color]">{activeItem.displayName || 'Component'}</div> :
+             <div className="bg-[--surface] p-4 shadow-[--shadow-2] rounded-[--radius] border border-[--border-color] font-bold text-[--primary]">{activeItem.displayName || 'Component'}</div> :
             null
         ) : null}
       </DragOverlay>

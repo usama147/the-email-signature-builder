@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 
 interface ColorPickerProps {
@@ -23,8 +22,6 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
         // Attempt to parse existing gradient if value is a gradient string
         if (value && value.includes('linear-gradient')) {
             setActiveTab('gradient');
-            // Basic parsing logic (could be improved with regex)
-            // Example: linear-gradient(180deg, #ffffff, #000000)
             const match = value.match(/linear-gradient\((.*?)deg,\s*(.*?),\s*(.*?)\)/);
             if (match) {
                 setGradientAngle(parseInt(match[1]));
@@ -77,7 +74,7 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                 />
             </div>
             {displayColorPicker && (
-                <div className="absolute z-10 mt-2 p-4 bg-[--surface] shadow-[--shadow-2] rounded-md border border-[--border-color] w-64" data-glass>
+                <div className="absolute z-[100] mt-2 p-4 bg-[--surface] shadow-[--shadow-2] rounded-lg border border-[--border-color] w-64 glass-popup" data-glass>
                     
                     {allowGradient && (
                         <div className="flex mb-4 border-b border-[--border-color]">
@@ -102,7 +99,7 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                                 type="color"
                                 value={value.includes('gradient') ? '#ffffff' : value}
                                 onChange={(e) => onChange(e.target.value)}
-                                className="w-full h-16 cursor-pointer"
+                                className="w-full h-16 cursor-pointer rounded-md overflow-hidden border border-[--border-color]"
                             />
                             <div className="mt-4">
                                 <h4 className="text-xs font-semibold text-[--text-color-light] mb-2">Saved Colors</h4>
@@ -110,7 +107,7 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                                     {savedColors.map(color => (
                                         <div key={color} className="relative group">
                                             <div
-                                                className="w-6 h-6 rounded-full cursor-pointer border"
+                                                className="w-6 h-6 rounded-full cursor-pointer border border-[--border-color] shadow-sm"
                                                 style={{ background: color }}
                                                 onClick={() => {
                                                     onChange(color);
@@ -119,17 +116,17 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                                             />
                                             <button 
                                                 onClick={() => handleRemoveColor(color)}
-                                                className="absolute -top-1 -right-1 w-4 h-4 bg-[--danger] text-white text-xs rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                className="absolute -top-1 -right-1 w-4 h-4 bg-[--danger] text-white text-[8px] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md"
                                             >&times;</button>
                                         </div>
                                     ))}
                                 </div>
                                 <button
                                     onClick={handleSaveColor}
-                                    className="w-full mt-3 text-center py-1 px-2 border border-transparent rounded-md shadow-[--shadow-1] text-xs font-medium text-[--primary-text] bg-[--primary] hover:bg-[--primary-hover] disabled:bg-[--secondary] disabled:opacity-50"
+                                    className="w-full mt-3 text-center py-1.5 px-2 border border-transparent rounded-md shadow-sm text-xs font-semibold text-[--primary-text] bg-[--primary] hover:bg-[--primary-hover] disabled:opacity-50 transition-all active:scale-95"
                                     disabled={savedColors.includes(value) || savedColors.length >= 10}
                                 >
-                                    Save Current Color
+                                    Save Color
                                 </button>
                             </div>
                         </>
@@ -145,7 +142,7 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                                             setGradientStart(e.target.value);
                                             updateGradient(e.target.value, gradientEnd, gradientAngle);
                                         }}
-                                        className="h-8 w-8 cursor-pointer"
+                                        className="h-8 w-8 cursor-pointer rounded overflow-hidden"
                                     />
                                     <input 
                                         type="text" 
@@ -154,7 +151,7 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                                             setGradientStart(e.target.value);
                                             updateGradient(e.target.value, gradientEnd, gradientAngle);
                                         }}
-                                        className="input-field flex-1 h-8 text-xs"
+                                        className="input-field flex-1 h-8 text-xs px-2"
                                     />
                                 </div>
                             </div>
@@ -168,7 +165,7 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                                             setGradientEnd(e.target.value);
                                             updateGradient(gradientStart, e.target.value, gradientAngle);
                                         }}
-                                        className="h-8 w-8 cursor-pointer"
+                                        className="h-8 w-8 cursor-pointer rounded overflow-hidden"
                                     />
                                     <input 
                                         type="text" 
@@ -177,23 +174,23 @@ export function ColorPicker({ value, onChange, savedColors, setSavedColors, allo
                                             setGradientEnd(e.target.value);
                                             updateGradient(gradientStart, e.target.value, gradientAngle);
                                         }}
-                                        className="input-field flex-1 h-8 text-xs"
+                                        className="input-field flex-1 h-8 text-xs px-2"
                                     />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-[--text-color-secondary] mb-1">Direction</label>
                                 <div className="flex gap-2">
-                                    <button onClick={() => { setGradientAngle(180); updateGradient(gradientStart, gradientEnd, 180); }} className={`flex-1 py-1 text-xs border rounded ${gradientAngle === 180 ? 'bg-[--primary] text-white' : 'bg-[--surface-secondary]'}`}>↓</button>
-                                    <button onClick={() => { setGradientAngle(0); updateGradient(gradientStart, gradientEnd, 0); }} className={`flex-1 py-1 text-xs border rounded ${gradientAngle === 0 ? 'bg-[--primary] text-white' : 'bg-[--surface-secondary]'}`}>↑</button>
-                                    <button onClick={() => { setGradientAngle(90); updateGradient(gradientStart, gradientEnd, 90); }} className={`flex-1 py-1 text-xs border rounded ${gradientAngle === 90 ? 'bg-[--primary] text-white' : 'bg-[--surface-secondary]'}`}>→</button>
-                                    <button onClick={() => { setGradientAngle(135); updateGradient(gradientStart, gradientEnd, 135); }} className={`flex-1 py-1 text-xs border rounded ${gradientAngle === 135 ? 'bg-[--primary] text-white' : 'bg-[--surface-secondary]'}`}>↘</button>
+                                    <button onClick={() => { setGradientAngle(180); updateGradient(gradientStart, gradientEnd, 180); }} className={`flex-1 py-1 text-xs border rounded transition-colors ${gradientAngle === 180 ? 'bg-[--primary] text-white border-transparent' : 'bg-[--surface-secondary] border-[--border-color]'}`}>↓</button>
+                                    <button onClick={() => { setGradientAngle(0); updateGradient(gradientStart, gradientEnd, 0); }} className={`flex-1 py-1 text-xs border rounded transition-colors ${gradientAngle === 0 ? 'bg-[--primary] text-white border-transparent' : 'bg-[--surface-secondary] border-[--border-color]'}`}>↑</button>
+                                    <button onClick={() => { setGradientAngle(90); updateGradient(gradientStart, gradientEnd, 90); }} className={`flex-1 py-1 text-xs border rounded transition-colors ${gradientAngle === 90 ? 'bg-[--primary] text-white border-transparent' : 'bg-[--surface-secondary] border-[--border-color]'}`}>→</button>
+                                    <button onClick={() => { setGradientAngle(135); updateGradient(gradientStart, gradientEnd, 135); }} className={`flex-1 py-1 text-xs border rounded transition-colors ${gradientAngle === 135 ? 'bg-[--primary] text-white border-transparent' : 'bg-[--surface-secondary] border-[--border-color]'}`}>↘</button>
                                 </div>
                             </div>
                             <div className="pt-2">
                                  <button
                                     onClick={handleSaveColor}
-                                    className="w-full text-center py-1 px-2 border border-transparent rounded-md shadow-[--shadow-1] text-xs font-medium text-[--primary-text] bg-[--primary] hover:bg-[--primary-hover] disabled:bg-[--secondary] disabled:opacity-50"
+                                    className="w-full text-center py-2 px-2 border border-transparent rounded-md shadow-sm text-xs font-bold text-[--primary-text] bg-[--primary] hover:bg-[--primary-hover] transition-all active:scale-95"
                                     disabled={savedColors.includes(value) || savedColors.length >= 10}
                                 >
                                     Save Gradient
